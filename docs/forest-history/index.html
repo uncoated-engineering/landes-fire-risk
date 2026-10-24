@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Landes Forest Timeline</title>
+<meta name="description" content="Scroll through 250 years of maps and imagery to watch the Landes de Gascogne turn from moorland into Europe's largest planted forest.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: full-bleed map; a field-notebook panel docks bottom on phones, left on desktop. */
+:root {
+  --paper: #eef0ea;        /* panel ground, sage-tinted */
+  --paper-2: #e2e6dc;      /* inset rows, track */
+  --ink: #1d2a22;          /* pine-bark text */
+  --ink-soft: #55625a;     /* secondary text */
+  --pine: #2f5d45;         /* era stops, active state */
+  --resin: #c9781f;        /* fires, events */
+  --line: rgba(29, 42, 34, .16);
+  --shadow: 0 10px 40px rgba(16, 28, 20, .22);
+  --f-display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #171d19; --paper-2: #222a25; --ink: #e6ebe4; --ink-soft: #a0aba3;
+    --pine: #7fb596; --resin: #e9a04e; --line: rgba(230, 235, 228, .14);
+    --shadow: 0 10px 40px rgba(0, 0, 0, .5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #171d19; --paper-2: #222a25; --ink: #e6ebe4; --ink-soft: #a0aba3;
+  --pine: #7fb596; --resin: #e9a04e; --line: rgba(230, 235, 228, .14);
+  --shadow: 0 10px 40px rgba(0, 0, 0, .5); color-scheme: dark;
+}
+
+html, body { height: 100%; margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--f-body); overflow: hidden; }
+#map { position: fixed; inset: 0; background: #c9cfc4; }
+
+/* Title chip */
+.brand {
+  position: fixed; z-index: 500;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
+  background: var(--paper); color: var(--ink); border-radius: 10px; box-shadow: var(--shadow);
+  padding: 8px 12px; max-width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
+.brand h1 { font: italic 400 1.15rem/1.15 var(--f-display); margin: 0; text-wrap: balance; }
+.brand p { margin: 0; font: 500 .68rem/1.3 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+
+/* Panel */
+.panel {
+  position: fixed; z-index: 600; left: 0; right: 0; bottom: 0;
+  background: var(--paper); color: var(--ink); box-shadow: var(--shadow);
+  border-radius: 16px 16px 0 0;
+  padding-block: 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 10px;
+  max-height: 52vh;
+}
+.panel.collapsed .story { display: none; }
+.grip { align-self: center; border: 0; background: none; padding: 4px 18px; cursor: pointer; color: var(--ink-soft); font: 500 .72rem var(--f-body); letter-spacing: .06em; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.grip::before { content: ""; width: 38px; height: 4px; border-radius: 4px; background: var(--line); }
+
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.year { font: 500 2rem/1 var(--f-data); font-variant-numeric: tabular-nums; color: var(--pine); letter-spacing: -.02em; }
+.era-title { font: 400 1.45rem/1.1 var(--f-display); margin: 0; text-wrap: balance; min-width: 0; }
+.source-line { font: 500 .7rem/1.35 var(--f-body); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); }
+
+.story { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+.story p { margin: 0; max-width: 62ch; }
+.facts { display: grid; gap: 6px; margin: 0; }
+.fact { display: grid; grid-template-columns: minmax(6.5rem, auto) 1fr; gap: 10px; align-items: baseline; padding: 6px 10px; background: var(--paper-2); border-radius: 8px; }
+.fact dt { font: 500 .86rem/1.3 var(--f-data); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.fact dd { margin: 0; font-size: .86rem; color: var(--ink-soft); min-width: 0; }
+.fact.fire dt { color: var(--resin); }
+
+.notice { font-size: .8rem; color: var(--resin); margin: 0; }
+.notice a { color: inherit; }
+
+/* Timeline */
+.timeline { position: relative; padding-top: 18px; }
+.track-labels { position: absolute; top: 0; left: 0; right: 0; height: 16px; font: 400 .68rem/1 var(--f-data); color: var(--ink-soft); pointer-events: none; }
+.track-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.track-labels span:first-child { transform: none; }
+.track-labels span:last-child { transform: translateX(-100%); }
+.ticks { position: absolute; left: 0; right: 0; top: 18px; height: 28px; pointer-events: none; z-index: 0; }
+.ticks::before { content: ""; position: absolute; left: 0; right: 0; top: 12px; height: 4px; border-radius: 4px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line); }
+.ticks i { position: absolute; top: 7px; width: 2px; height: 14px; margin-left: -1px; background: var(--resin); border-radius: 1px; opacity: .85; }
+.ticks b { position: absolute; top: 10px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--paper); border: 2px solid var(--pine); box-sizing: border-box; }
+.ticks b.on { background: var(--pine); }
+input[type=range] { width: 100%; margin: 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; position: relative; z-index: 1; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; background: transparent; border: 0; }
+.compare input[type=range]::-webkit-slider-runnable-track { background: var(--paper-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); }
+input[type=range]::-moz-range-track { height: 4px; background: transparent; border: 0; }
+.compare input[type=range]::-moz-range-track { background: var(--paper-2); border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--pine); border: 3px solid var(--paper); box-shadow: 0 1px 6px rgba(0,0,0,.35); }
+input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--pine); border: 3px solid var(--paper); box-shadow: 0 1px 6px rgba(0,0,0,.35); }
+input[type=range]:focus-visible { outline: 2px solid var(--pine); outline-offset: 4px; border-radius: 6px; }
+
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn { font: 500 .85rem var(--f-body); color: var(--ink); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.btn:hover { border-color: var(--pine); }
+.btn:focus-visible { outline: 2px solid var(--pine); outline-offset: 2px; }
+.btn[aria-pressed=true] { background: var(--pine); color: var(--paper); border-color: var(--pine); }
+.compare { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: .8rem; color: var(--ink-soft); min-width: 0; flex: 1 1 180px; max-width: 260px; }
+.compare input { flex: 1; min-width: 0; height: 24px; }
+
+.sources { font-size: .75rem; color: var(--ink-soft); }
+.sources summary { cursor: pointer; font-weight: 500; }
+.sources ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.sources a { color: var(--ink-soft); }
+
+/* Map labels */
+.town { font: 600 11px/1 var(--f-body); color: #1d2a22; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 6px #fff; white-space: nowrap; letter-spacing: .02em; }
+.leaflet-tooltip.fire-tip { font: 500 12px/1.35 var(--f-body); border-radius: 8px; padding: 6px 9px; }
+.leaflet-control-attribution { font-size: 10px; max-width: 70vw; }
+.leaflet-top.leaflet-right { top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px); }
+
+@media (min-width: 900px) {
+  .panel {
+    top: calc(84px + env(safe-area-inset-top, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    left: calc(16px + env(safe-area-inset-left, 0px)); right: auto; width: 400px;
+    border-radius: 16px; max-height: none; padding: 16px 20px;
+  }
+  .grip { display: none; }
+  .panel.collapsed .story { display: flex; }
+  .story { flex: 1; }
+  .leaflet-bottom.leaflet-left { left: 432px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="map" role="region" aria-label="Map of the Landes de Gascogne"></div>
+
+<header class="brand">
+  <p>Landes de Gascogne · 1750–2026</p>
+  <h1>How a moor became a pine forest</h1>
+</header>
+
+<section class="panel" id="panel" aria-live="polite">
+  <button class="grip" id="grip" type="button" aria-expanded="true" aria-controls="story">Hide details</button>
+  <div class="head">
+    <span class="year" id="year">1780</span>
+    <h2 class="era-title" id="eraTitle">Before the pines</h2>
+  </div>
+  <div class="source-line" id="sourceLine"></div>
+
+  <div class="story" id="story">
+    <p id="eraText"></p>
+    <dl class="facts" id="facts"></dl>
+    <p class="notice" id="notice" hidden></p>
+    <details class="sources">
+      <summary>Sources and notes</summary>
+      <ul>
+        <li>Maps and aerial photos: <a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN Géoplateforme</a> (Cassini map via BnF, état-major map, 1950 map, historical and current orthophotos).</li>
+        <li>Satellite mosaics: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless by EOX IT Services</a>, contains modified Copernicus Sentinel data 2021 and 2023 (CC BY-NC-SA 4.0).</li>
+        <li>History: <a href="https://en.wikipedia.org/wiki/Landes_forest" target="_blank" rel="noopener">Landes forest</a>, <a href="https://fr.wikipedia.org/wiki/For%C3%AAt_des_Landes" target="_blank" rel="noopener">Forêt des Landes</a>, <a href="https://www.abelard.org/france/les_landes_forestry_industry1.php" target="_blank" rel="noopener">abelard.org</a>, <a href="https://fresques.ina.fr/landes/parcours/0003/les-landes-un-departement-avant-tout-forestier.html" target="_blank" rel="noopener">INA Empreintes landaises</a>, <a href="https://www.sorbonne-universite.fr/actualites/dans-les-forets-des-landes-le-stockage-de-co2-atteint-ses-limites-et-ce-nest-pas" target="_blank" rel="noopener">Rabotin, Billen &amp; Le Noë</a>.</li>
+        <li>Fires: <a href="https://en.wikipedia.org/wiki/1949_Landes_forest_fire" target="_blank" rel="noopener">1949 fire</a>, <a href="https://www.gironde.gouv.fr/contenu/telechargement/64007/426953/file/RETEX%20incendies%20-%20Gironde%20et%20Landes%20-%20octobre%202022.pdf" target="_blank" rel="noopener">Préfecture de la Gironde, 2022 review</a>, <a href="https://www.notre-planete.info/actualites/506-feux-foret-incendie-Gironde-juillet-2026" target="_blank" rel="noopener">notre-planete.info on 2026</a>.</li>
+        <li>Orange circles have the same area as each fire, centred on the main commune. They are not the real burn perimeters.</li>
+        <li>Each map's survey date varies by sheet; the year shown is indicative.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="timeline">
+    <div class="track-labels" id="trackLabels"></div>
+    <div class="ticks" id="ticks"></div>
+    <input type="range" id="slider" min="1750" max="2026" step="1" value="1780" aria-label="Year">
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="prev" type="button" aria-label="Previous map">◀</button>
+    <button class="btn" id="play" type="button" aria-pressed="false">Play</button>
+    <button class="btn" id="next" type="button" aria-label="Next map">▶</button>
+    <label class="compare" for="compare">Today <input type="range" id="compare" min="0" max="100" value="0" aria-label="Blend in today's aerial photo"></label>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function () {
+  const MIN = 1750, MAX = 2026;
+
+  const geopf = (layer, style, fmt, tms) =>
+    `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=${encodeURIComponent(style)}&TILEMATRIXSET=${tms}&FORMAT=${encodeURIComponent(fmt)}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+  const IGN = '<a href="https://cartes.gouv.fr" target="_blank" rel="noopener">IGN</a>';
+  const EOX = y => `<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX (Copernicus Sentinel data ${y})`;
+
+  const LAYERS = {
+    cassini:   { url: geopf('BNF-IGNF_GEOGRAPHICALGRIDSYSTEMS.CASSINI', 'normal', 'image/png', 'PM_6_14'), minNativeZoom: 6, maxNativeZoom: 14, attribution: `${IGN} · BnF, carte de Cassini` },
+    etatmajor: { url: geopf('GEOGRAPHICALGRIDSYSTEMS.ETATMAJOR40', 'normal', 'image/jpeg', 'PM_6_15'), minNativeZoom: 6, maxNativeZoom: 15, attribution: `${IGN} · carte de l'état-major` },
+    map1950:   { url: geopf('GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN50.1950', 'SCAN50_1950', 'image/jpeg', 'PM_3_15'), minNativeZoom: 3, maxNativeZoom: 15, attribution: `${IGN} · carte 1950` },
+    ortho1950: { url: geopf('ORTHOIMAGERY.ORTHOPHOTOS.1950-1965', 'BDORTHOHISTORIQUE', 'image/png', 'PM'), maxNativeZoom: 18, attribution: `${IGN} · photographies aériennes 1950–1965` },
+    ortho2000: { url: geopf('ORTHOIMAGERY.ORTHOPHOTOS2000-2005', 'BDORTHOHISTORIQUE', 'image/png', 'PM'), maxNativeZoom: 18, attribution: `${IGN} · orthophotos 2000–2005` },
+    s2_2021:   { url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg', maxNativeZoom: 14, attribution: EOX(2021) },
+    s2_2023:   { url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg', maxNativeZoom: 14, attribution: EOX(2023) },
+    today:     { url: geopf('ORTHOIMAGERY.ORTHOPHOTOS', 'normal', 'image/jpeg', 'PM'), maxNativeZoom: 19, attribution: `${IGN} · BD ORTHO` }
+  };
+
+  const ERAS = [
+    { from: 1750, show: 'c. 1780', title: 'Before the pines', layer: 'cassini',
+      source: 'Carte de Cassini · surveyed in the 18th century',
+      text: 'Most of the interior is open moorland: wet heath grazed by sheep and held in common by the villages. Woods survive mainly along the coast and in the Pays de Buch, where pine seeding to hold the sand began in the 18th century. On this map, look for the tree symbols hugging the coast and the empty "landes" inland.',
+      facts: [['~250,000 ha', 'of forest around 1800, the rest mostly marshy moor'], ['Sheep', 'pastoralism made the moors productive: manure fed the rye fields']] },
+    { from: 1815, show: '1820–1866', title: 'Dunes fixed, moors drained', layer: 'etatmajor',
+      source: "Carte de l'état-major · surveyed 1820–1866",
+      text: "Engineers led by Brémontier plant the coastal dunes with pine and marram grass to stop the sand burying villages. Inland, the moors are still open. The law of 19 June 1857, backed by Napoleon III, orders every commune to drain and plant its common moors, then sell the planted land. Pastoralism and the stilt-walking shepherd begin to disappear.",
+      facts: [['4,000 ha', 'of sand fixed by 1817'], ['19 June 1857', 'law on draining and cultivating the Landes de Gascogne'], ['20,000 ha', 'drained under Jules Chambrelent, with 428 km of roads']] },
+    { from: 1867, show: '1880–1940', title: 'The golden tree', layer: 'map1950',
+      source: 'Carte 1950 (SCAN 50) · compiled in the first half of the 20th century',
+      text: 'Within about thirty years of the 1857 law the planted pine area roughly doubles, and the moors give way to a near-continuous maritime pine forest. Resin tapping (gemmage) becomes an industry. This map shows the massif close to its full extent, just before the great fires.',
+      facts: [['×2', 'pine area within ~30 years of the 1857 law'], ['20–25,000', 'resin tappers at the peak, early 1920s'], ['66,000 ha', 'burned in 1942, 45,000 ha of it in a single month', 'fire'], ['30,000 ha', 'burned in 1945–46', 'fire']] },
+    { from: 1949, show: '1950–1965', title: 'Burned and replanted', layer: 'ortho1950',
+      source: 'IGN aerial photographs · 1950–1965',
+      text: 'Wartime neglect left brush to build up, and the 1940s fires culminate in August 1949. The disaster creates France\'s forest-fire defence system (DFCI). The second-generation forest is planted in straight rows, cut by wide firebreaks, tracks and water points. Zoom in to see the new grid and the scars of the burn.',
+      facts: [['~50,000 ha', 'burned 19–25 August 1949 around Cestas, Saucats, Marcheprime and Mios', 'fire'], ['82', 'people killed, many of them firefighters and volunteers', 'fire'], ['DFCI', 'the fire-defence network born from the disaster']] },
+    { from: 1966, show: '2000–2005', title: 'Pulp, maize and storms', layer: 'ortho2000',
+      source: 'IGN orthophotos · 2000–2005',
+      text: 'Resin tapping fades from the early 1970s and is gone by 1990; the forest now grows wood for pulp and timber on short rotations. From the 1970s, large clearings are turned over to irrigated maize, visible as circles and rectangles cut into the forest. Storm Martin flattens a large volume of pine in December 1999.',
+      facts: [['1990', 'last resin tapping in the forest'], ['~28 million m³', 'of wood blown down by storm Martin, 27 December 1999']] },
+    { from: 2009, show: '2021', title: 'After Klaus', layer: 's2_2021',
+      source: 'Sentinel-2 cloudless mosaic · 2021',
+      text: 'Storm Klaus on 24 January 2009 is the worst blow to the forest since 1949. The clearing and replanting that followed shows from space as a patchwork of light (young or cleared) and dark (mature) parcels.',
+      facts: [['~40 million m³', 'of wood lost to Klaus, 37 million m³ of it maritime pine'], ['~300,000 ha', 'of forest damaged, about 90% of it in the Landes']] },
+    { from: 2022, show: '2023', title: 'The 2022 fires', layer: 's2_2023',
+      source: 'Sentinel-2 cloudless mosaic · 2023',
+      text: 'In the summer of 2022 fires at Landiras and La Teste-de-Buch burn the most forest since 1949. Compare this mosaic with 2021: the brown scars south of Bordeaux and behind the Dune du Pilat are the burned areas.',
+      facts: [['~30,000 ha', 'burned in Gironde and the Landes during the 2022 fires', 'fire']] },
+    { from: 2026, show: '2026', title: 'Today', layer: 'today',
+      source: 'IGN BD ORTHO · latest aerial photos',
+      text: 'The massif covers about a million hectares, nine-tenths maritime pine, mostly privately owned. In July 2026 the Saumos fire becomes the largest in France since 1949. The aerial photos here predate the 2026 fires, which are shown as circles.',
+      facts: [['~1,000,000 ha', 'of forest today, about 90% maritime pine'], ['~42,000 ha', 'burned by the Saumos fire, from 22 July 2026', 'fire'], ['~3,600 ha', 'burned by the Biscarrosse fire, from 23 July 2026', 'fire']] }
+  ];
+
+  const EVENTS = [
+    { year: 1857, label: 'Law of 19 June 1857' },
+    { year: 1942, label: '1942 fires' },
+    { year: 1949, label: '1949 fire', fires: [{ name: 'Cestas–Saucats fire', ha: 50000, at: [44.69, -0.66], note: '19–25 August 1949 · 82 killed' }] },
+    { year: 1999, label: 'Storm Martin' },
+    { year: 2009, label: 'Storm Klaus' },
+    { year: 2022, label: '2022 fires', fires: [
+      { name: 'Landiras fires', ha: 23000, at: [44.53, -0.47], note: 'July and August 2022 · approx. share of the ~30,000 ha total' },
+      { name: 'La Teste-de-Buch fire', ha: 7000, at: [44.56, -1.17], note: 'July 2022 · approx.' }] },
+    { year: 2026, label: '2026 fires', fires: [
+      { name: 'Saumos fire', ha: 42000, at: [44.87, -1.03], note: 'from 22 July 2026 · ~224,000 evacuations (cumulative)' },
+      { name: 'Biscarrosse fire', ha: 3600, at: [44.39, -1.16], note: 'from 23 July 2026' }] }
+  ];
+
+  const TOWNS = [['Bordeaux', 44.84, -0.58], ['Arcachon', 44.66, -1.17], ['Mont-de-Marsan', 43.89, -0.50], ['Dax', 43.71, -1.05], ['Mimizan', 44.20, -1.23], ['Lacanau', 45.00, -1.08], ['Sabres', 44.15, -0.74], ['Bazas', 44.43, -0.21]];
+
+  // ---------- Map ----------
+  const map = L.map('map', {
+    center: [44.35, -0.85], zoom: 8, minZoom: 7, maxZoom: 16,
+    maxBounds: [[42.9, -2.6], [45.9, 1.0]], zoomControl: false, attributionControl: true
+  });
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  const tileCache = {};
+  const errors = {};
+  function getLayer(key) {
+    if (tileCache[key]) return tileCache[key];
+    const cfg = LAYERS[key];
+    const layer = L.tileLayer(cfg.url, { attribution: cfg.attribution, minNativeZoom: cfg.minNativeZoom || 0, maxNativeZoom: cfg.maxNativeZoom, maxZoom: 16, opacity: 0, crossOrigin: false });
+    errors[key] = { ok: 0, bad: 0 };
+    layer.on('tileload', () => { errors[key].ok++; refreshNotice(); });
+    layer.on('tileerror', () => { errors[key].bad++; refreshNotice(); });
+    tileCache[key] = layer;
+    return layer;
+  }
+
+  const townLayer = L.layerGroup(TOWNS.map(([n, la, lo]) =>
+    L.marker([la, lo], { interactive: false, icon: L.divIcon({ className: 'town', html: n, iconSize: null, iconAnchor: [0, 6] }) })
+  )).addTo(map);
+  townLayer.eachLayer(m => m.setZIndexOffset(1000));
+
+  // Fire circles: same area as the burn, centred on the main commune
+  const fireLayer = L.layerGroup().addTo(map);
+  const resin = () => getComputedStyle(document.documentElement).getPropertyValue('--resin').trim() || '#c9781f';
+  const fireShapes = [];
+  EVENTS.forEach(ev => (ev.fires || []).forEach(f => {
+    const r = Math.sqrt(f.ha * 10000 / Math.PI);
+    const c = L.circle(f.at, { radius: r, color: resin(), weight: 2, dashArray: '5 4', fillColor: resin(), fillOpacity: .22 });
+    c.bindTooltip(`<strong>${f.name}</strong><br>~${f.ha.toLocaleString('en')} ha · ${f.note}<br><em>Circle of equal area, not the real perimeter</em>`, { className: 'fire-tip', sticky: true });
+    fireShapes.push({ year: ev.year, shape: c });
+  }));
+
+  // Overlay of today's photo for comparison
+  const compareLayer = L.tileLayer(LAYERS.today.url, { attribution: LAYERS.today.attribution, maxNativeZoom: 19, maxZoom: 16, opacity: 0 });
+
+  // ---------- State ----------
+  let eraIdx = 0, current = null, playing = null;
+  const $ = id => document.getElementById(id);
+  const slider = $('slider'), compare = $('compare');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function eraForYear(y) { let i = 0; ERAS.forEach((e, k) => { if (y >= e.from) i = k; }); return i; }
+  const pct = y => (y - MIN) / (MAX - MIN) * 100;
+
+  function fade(layer, to, ms, done) {
+    if (reduceMotion || ms === 0) { layer.setOpacity(to); done && done(); return; }
+    const from = layer.options.opacity, t0 = performance.now();
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / ms);
+      layer.setOpacity(from + (to - from) * k);
+      if (k < 1) requestAnimationFrame(step); else done && done();
+    })(t0);
+  }
+
+  function setEra(i, yearOverride) {
+    i = Math.max(0, Math.min(ERAS.length - 1, i));
+    const e = ERAS[i];
+    const year = yearOverride != null ? yearOverride : (i === ERAS.length - 1 ? MAX : Math.max(e.from, parseInt(e.show.replace(/\D*(\d{4}).*/, '$1'), 10) || e.from));
+    slider.value = year;
+    if (i !== eraIdx || !current) {
+      eraIdx = i;
+      const next = getLayer(e.layer);
+      const prev = current;
+      if (!map.hasLayer(next)) next.addTo(map);
+      next.bringToFront();
+      if (map.hasLayer(compareLayer)) compareLayer.bringToFront();
+      fade(next, 1, 450, () => { if (prev && prev !== next) { prev.setOpacity(0); map.removeLayer(prev); } });
+      current = next;
+      renderText(e);
+      syncCompare();
+    }
+    $('year').textContent = e.show;
+    updateFires(year);
+    document.querySelectorAll('.ticks b').forEach((b, k) => b.classList.toggle('on', k === i));
+    refreshNotice();
+  }
+
+  function renderText(e) {
+    $('eraTitle').textContent = e.title;
+    $('sourceLine').textContent = e.source;
+    $('eraText').textContent = e.text;
+    const facts = $('facts'); facts.innerHTML = '';
+    e.facts.forEach(([v, l, kind]) => {
+      const row = document.createElement('div'); row.className = 'fact' + (kind === 'fire' ? ' fire' : '');
+      const dt = document.createElement('dt'); dt.textContent = v;
+      const dd = document.createElement('dd'); dd.textContent = l;
+      row.append(dt, dd); facts.append(row);
+    });
+  }
+
+  function updateFires(year) {
+    fireShapes.forEach(({ year: y, shape }) => {
+      const visible = year >= y;
+      if (visible && !fireLayer.hasLayer(shape)) fireLayer.addLayer(shape);
+      if (!visible && fireLayer.hasLayer(shape)) fireLayer.removeLayer(shape);
+      if (visible) {
+        const recent = year - y < 12;
+        shape.setStyle({ fillOpacity: recent ? .25 : .08, opacity: recent ? 1 : .5 });
+      }
+    });
+  }
+
+  function syncCompare() {
+    const v = +compare.value / 100;
+    const isToday = ERAS[eraIdx].layer === 'today';
+    compare.disabled = isToday;
+    if (v > 0 && !isToday) { if (!map.hasLayer(compareLayer)) compareLayer.addTo(map); compareLayer.bringToFront(); compareLayer.setOpacity(v); }
+    else if (map.hasLayer(compareLayer)) map.removeLayer(compareLayer);
+  }
+
+  function refreshNotice() {
+    const key = ERAS[eraIdx].layer, s = errors[key], n = $('notice');
+    if (s && s.bad >= 6 && s.ok === 0) {
+      n.hidden = false;
+      n.innerHTML = 'This map layer is not loading right now. You can open the same layer on <a href="https://cartes.gouv.fr/explorer-les-cartes/" target="_blank" rel="noopener">cartes.gouv.fr</a>, or move to another year.';
+    } else n.hidden = true;
+  }
+
+  // ---------- Timeline UI ----------
+  const labels = $('trackLabels');
+  [1750, 1800, 1850, 1900, 1950, 2026].forEach(y => {
+    const s = document.createElement('span'); s.textContent = y; s.style.left = pct(y) + '%'; labels.append(s);
+  });
+  const ticks = $('ticks');
+  EVENTS.forEach(ev => { const t = document.createElement('i'); t.style.left = pct(ev.year) + '%'; t.title = `${ev.year}: ${ev.label}`; ticks.append(t); });
+  ERAS.forEach(e => { const b = document.createElement('b'); const y = Math.max(e.from, parseInt(e.show.replace(/\D*(\d{4}).*/, '$1'), 10) || e.from); b.style.left = pct(Math.min(y, MAX)) + '%'; ticks.append(b); });
+
+  slider.addEventListener('input', () => { stop(); setEra(eraForYear(+slider.value), +slider.value); });
+  compare.addEventListener('input', syncCompare);
+  $('prev').addEventListener('click', () => { stop(); setEra(eraIdx - 1); });
+  $('next').addEventListener('click', () => { stop(); setEra(eraIdx + 1); });
+  $('play').addEventListener('click', () => playing ? stop() : start());
+  function start() {
+    $('play').setAttribute('aria-pressed', 'true'); $('play').textContent = 'Pause';
+    if (eraIdx === ERAS.length - 1) setEra(0);
+    playing = setInterval(() => { if (eraIdx >= ERAS.length - 1) stop(); else setEra(eraIdx + 1); }, 4000);
+  }
+  function stop() { if (!playing) return; clearInterval(playing); playing = null; $('play').setAttribute('aria-pressed', 'false'); $('play').textContent = 'Play'; }
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight') { stop(); setEra(eraIdx + 1); }
+    if (e.key === 'ArrowLeft') { stop(); setEra(eraIdx - 1); }
+  });
+  $('grip').addEventListener('click', () => {
+    const p = $('panel'), collapsed = p.classList.toggle('collapsed');
+    $('grip').setAttribute('aria-expanded', String(!collapsed));
+    $('grip').textContent = collapsed ? 'Show details' : 'Hide details';
+  });
+
+  setEra(0, 1780);
+})();
+</script>
+</body>
+</html>

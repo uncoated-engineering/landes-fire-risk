@@ -4,6 +4,12 @@ A geospatial wildfire-risk map of the Landes de Gascogne, built entirely from op
 
 The project is the visual companion to an essay arguing that state-flattened risk pricing (regulation, mandatory insurance, reconstruction subsidies) mutes the signals that would otherwise discourage risky land use. If risk is unevenly distributed across the forest, a flat premium is a cross-subsidy. This repo tries to show how uneven.
 
+## Forest history map
+
+[`docs/forest-history/index.html`](docs/forest-history/index.html) is an interactive timeline of the massif from the 18th century to 2026. Drag the slider to step through the Cassini map, the état-major map, the 1950 map, IGN aerial photos (1950–65, 2000–05, today) and Sentinel-2 mosaics (2021, 2023). Major fires appear as circles of equal area, and a second slider blends in today's aerial photo for comparison.
+
+It is a single static page (Leaflet from cdnjs, tiles from IGN Géoplateforme and EOX), so it runs from GitHub Pages or straight from a local file.
+
 ## Questions
 
 1. Where in the Landes massif is fire risk concentrated, and what drives it (fuel, weather, access, wildland-urban interface)?
