@@ -1,0 +1,454 @@
+<title>Landes Forest Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: an atlas plate. Phone: sticky year bar, map, then story, chart and zones. Desktop: map left, reading column right. */
+:root {
+  --bg: #f2f4f0;
+  --surface: #fbfcfa;
+  --ink: #17221b;
+  --muted: #5a685f;
+  --line: #d9dfd6;
+  --sea: #dce6ea;
+  --land: #e7e9e2;
+  --forest: #2d6a46;
+  --burn: #dd7426;
+  --farm: #dfc57a;
+  --moor: #c6afcf;
+  --water: #87adc4;
+  --halo: #fbfcfa;
+  --f-display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-label: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --surface: #182019; --ink: #e5ebe4; --muted: #9aa89f; --line: #2b352e;
+    --sea: #142128; --land: #1f2621; --forest: #4f9b6c; --burn: #f08f45; --farm: #b59a4c;
+    --moor: #86708f; --water: #4e7d97; --halo: #182019; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --surface: #182019; --ink: #e5ebe4; --muted: #9aa89f; --line: #2b352e;
+  --sea: #142128; --land: #1f2621; --forest: #4f9b6c; --burn: #f08f45; --farm: #b59a4c;
+  --moor: #86708f; --water: #4e7d97; --halo: #182019; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--f-body); margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+
+header.intro { display: grid; gap: 6px; margin-bottom: 14px; }
+.kicker { font: 600 .74rem/1.2 var(--f-label); letter-spacing: .12em; text-transform: uppercase; color: var(--forest); margin: 0; }
+h1 { font: 400 clamp(1.75rem, 5.5vw, 2.6rem)/1.08 var(--f-display); margin: 0; text-wrap: balance; }
+.dek { margin: 0; color: var(--muted); max-width: 60ch; }
+
+/* Sticky year bar */
+.yearbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px 14px 8px; display: grid; gap: 4px; margin-bottom: 14px;
+  box-shadow: 0 6px 20px -14px rgba(0,0,0,.35);
+}
+.yb-top { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.yb-year { font: 400 2rem/1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--forest); flex: none; }
+.yb-title { font: 600 .98rem/1.15 var(--f-label); min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; align-self: center; }
+.yb-top { align-items: center; }
+.yb-btns { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.ibtn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.ibtn:hover { border-color: var(--forest); }
+.ibtn:focus-visible, input:focus-visible, button:focus-visible, .zone-row:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.ibtn svg { width: 14px; height: 14px; fill: currentColor; }
+.slider-wrap { position: relative; padding-bottom: 16px; }
+input[type=range] { width: 100%; margin: 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--forest) var(--p, 0%), var(--line) var(--p, 0%)); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 6px; background: var(--line); }
+input[type=range]::-moz-range-progress { height: 6px; border-radius: 6px; background: var(--forest); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: var(--surface); border: 3px solid var(--forest); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 3px solid var(--forest); }
+.ticks { position: absolute; left: 11px; right: 11px; bottom: 0; height: 14px; font: 500 .7rem/1 var(--f-label); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+
+/* Main grid */
+.grid { display: grid; gap: 16px; }
+@media (min-width: 960px) {
+  .grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+  .map-col { position: sticky; top: calc(118px + env(safe-area-inset-top, 0px)); }
+}
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+.map-card { padding: 8px; }
+.map-frame { background: var(--sea); border-radius: 10px; overflow: hidden; }
+#map { display: block; width: 100%; height: auto; max-height: 72vh; touch-action: manipulation; }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; padding: 8px 6px 4px; }
+@media (min-width: 520px) { .legend { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.lg { display: grid; grid-template-columns: 14px 1fr; gap: 2px 8px; align-items: center; min-width: 0; }
+.lg i { width: 12px; height: 13px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.lg b { font: 600 .8rem/1.2 var(--f-label); letter-spacing: .02em; }
+.lg span { grid-column: 2; font-size: .9rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.map-note { font-size: .78rem; color: var(--muted); padding: 2px 6px 4px; margin: 0; }
+
+/* SVG */
+.sea { fill: var(--sea); }
+.ctx { fill: var(--land); }
+.dept { fill: none; stroke: var(--muted); stroke-width: .35; stroke-dasharray: 1.6 1.2; opacity: .6; }
+.hx { stroke: var(--surface); stroke-width: .28; transition: fill .45s ease var(--d, 0ms), opacity .3s ease; }
+.F { fill: var(--forest); } .D { fill: var(--burn); } .A { fill: var(--farm); } .M { fill: var(--moor); } .W { fill: var(--water); }
+.dim .hx:not(.sel) { opacity: .28; }
+.zb { fill: none; stroke: var(--surface); stroke-width: .9; pointer-events: none; }
+.zb.on { stroke: var(--ink); stroke-width: 1.3; }
+.zl { font: 600 4.1px var(--f-label); letter-spacing: .04em; fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.4px; stroke-linejoin: round; pointer-events: none; text-transform: uppercase; }
+.town circle { fill: var(--ink); stroke: var(--halo); stroke-width: .5; }
+.town text { font: 500 3.6px var(--f-body); fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.1px; stroke-linejoin: round; }
+.lbl { font: 600 3.6px var(--f-label); letter-spacing: .25em; fill: var(--muted); opacity: .8; }
+.lbl.water { font: italic 400 4.2px var(--f-display); letter-spacing: .06em; fill: var(--water); opacity: 1; }
+.fire circle { fill: none; stroke: var(--burn); stroke-width: .8; }
+.fire text { font: 600 3.6px var(--f-label); fill: var(--burn); paint-order: stroke; stroke: var(--halo); stroke-width: 1.2px; }
+.scale line { stroke: var(--ink); stroke-width: .6; }
+.scale text { font: 500 3.2px var(--f-label); fill: var(--muted); }
+
+/* Story */
+.story { display: grid; gap: 10px; }
+.story h2 { font: 400 1.5rem/1.15 var(--f-display); margin: 0; text-wrap: balance; }
+.story p { margin: 0; max-width: 62ch; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.stat { border-top: 2px solid var(--forest); padding-top: 6px; min-width: 0; }
+.stat.burn { border-color: var(--burn); }
+.stat .v { font: 400 1.45rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat .k { font-size: .84rem; color: var(--muted); }
+.badge { justify-self: start; font: 600 .7rem/1 var(--f-label); letter-spacing: .08em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.badge.doc { color: var(--forest); border-color: var(--forest); }
+
+h3 { font: 600 .78rem/1.2 var(--f-label); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.chart-wrap svg { display: block; width: 100%; height: auto; }
+.ax { font: 500 12px var(--f-label); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.grid-l { stroke: var(--line); stroke-width: 1; }
+.cur { stroke: var(--ink); stroke-width: 1.5; }
+.cur-t { font: 600 13px var(--f-label); fill: var(--ink); }
+.pt { stroke: var(--surface); stroke-width: 1.5; }
+.chart-note { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
+
+/* Zones */
+.zones { display: grid; gap: 2px; }
+.zone-row { display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 5.6rem; gap: 10px; align-items: center; padding: 7px 6px; border-radius: 8px; cursor: pointer; border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; }
+.zone-row:hover { background: var(--bg); }
+.zone-row.on { background: var(--bg); box-shadow: inset 3px 0 0 var(--forest); }
+.zr-name { font: 600 .92rem/1.2 var(--f-label); min-width: 0; }
+.zr-bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--line); min-width: 0; }
+.zr-bar i { display: block; height: 100%; transition: width .45s ease; }
+.zr-v { font-size: .86rem; font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); }
+.zone-detail { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-size: .92rem; display: grid; gap: 4px; }
+.zone-detail strong { font: 400 1.1rem/1.2 var(--f-display); }
+.zone-detail button { justify-self: start; font: 600 .8rem var(--f-label); background: none; border: 0; color: var(--forest); padding: 2px 0; cursor: pointer; text-decoration: underline; }
+
+details.method { font-size: .9rem; color: var(--muted); }
+details.method summary { cursor: pointer; font: 600 .95rem var(--f-label); color: var(--ink); }
+details.method p, details.method ul { margin: 8px 0 0; max-width: 64ch; }
+details.method ul { padding-left: 18px; display: grid; gap: 4px; }
+details.method a { color: var(--forest); }
+.right-col { display: grid; gap: 16px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .hx, .zr-bar i { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <p class="kicker">Landes de Gascogne · 1780–2026</p>
+    <h1>From moorland to pine forest</h1>
+    <p class="dek">How Europe's largest planted forest spread over 1.33 million hectares of south-west France, from the Médoc to Dax, zone by zone.</p>
+  </header>
+
+  <div class="yearbar" role="group" aria-label="Year">
+    <div class="yb-top">
+      <span class="yb-year" id="ybYear">1780</span>
+      <span class="yb-title" id="ybTitle"></span>
+      <div class="yb-btns">
+        <button class="ibtn" id="prev" type="button" aria-label="Previous year"><svg viewBox="0 0 10 10"><path d="M7 1 2.5 5 7 9z"/></svg></button>
+        <button class="ibtn" id="play" type="button" aria-label="Play"><svg viewBox="0 0 10 10" id="playIcon"><path d="M2.5 1 8.5 5 2.5 9z"/></svg></button>
+        <button class="ibtn" id="next" type="button" aria-label="Next year"><svg viewBox="0 0 10 10"><path d="M3 1 7.5 5 3 9z"/></svg></button>
+      </div>
+    </div>
+    <div class="slider-wrap">
+      <input type="range" id="slider" min="0" max="14" step="1" value="0" aria-label="Year">
+      <div class="ticks" id="ticks"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="map-col">
+      <div class="card map-card">
+        <div class="map-frame"><svg id="map" role="img" aria-label="Hexagon map of the Landes de Gascogne showing forest, moor, farmland and burned land for the selected year"></svg></div>
+        <div class="legend" id="legend"></div>
+        <p class="map-note">Each hexagon is 1,500 ha. Tap a zone for its figures.</p>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <section class="card story" aria-live="polite">
+        <span class="badge" id="badge"></span>
+        <h2 id="storyTitle"></h2>
+        <p id="storyText"></p>
+        <div class="stats">
+          <div class="stat"><div class="v" id="sForest"></div><div class="k">of forest land in the massif</div></div>
+          <div class="stat" id="sDeltaBox"><div class="v" id="sShare"></div><div class="k" id="sShareK">of the massif covered</div></div>
+        </div>
+      </section>
+
+      <section class="card chart-wrap">
+        <h3>Land cover of the whole massif, 1780–2026</h3>
+        <svg id="chart" viewBox="0 0 440 230" role="img" aria-label="Stacked area chart of forest, burned land, farmland and moor from 1780 to 2026"></svg>
+        <p class="chart-note">Solid dots are documented figures; hollow dots are estimates. Tap the chart to jump to a year.</p>
+      </section>
+
+      <section class="card">
+        <h3>The nine zones</h3>
+        <div class="zones" id="zones"></div>
+        <div class="zone-detail" id="zoneDetail" hidden></div>
+      </section>
+
+      <section class="card">
+        <details class="method">
+          <summary>How this map is made</summary>
+          <p>The massif is drawn from 277 real communes of Gironde, Landes and Lot-et-Garonne, about 1.33 million hectares. That matches the national forest inventory, which counts 987,950 ha of forest at 74.3% cover. I split it into nine zones following the old natural regions ("pays").</p>
+          <p>Totals for the whole massif follow published figures where they exist and are estimated between them. How each total splits between zones is my estimate, based on when each area was planted, where the 1940s fires and the storms hit hardest, and where farm clearings happened. Inside a zone, which hexagons are green is illustrative; the number of green hexagons is what the figures say. Fire hexagons sit around the real fire locations.</p>
+          <ul id="sources"></ul>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+(function () {
+  const D = DATA, SNAP = D.meta.snapshots, HA = D.meta.hexHa, R = D.meta.hexR;
+  const NS = 'http://www.w3.org/2000/svg';
+  const fmt = n => Math.round(n).toLocaleString('en-US');
+  const fmtK = n => n >= 1e6 ? parseFloat((n / 1e6).toFixed(2)) + ' M' : Math.round(n / 1000) + 'k';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const STORY = {
+    1780: ['Moorland as far as the eye can see', 'About 250,000 ha are wooded, mostly old pine forests near the coast (La Teste, Biscarrosse, the Marensin) and oak along the rivers. The rest is wet heath grazed by sheep and held in common by the villages. Sand dunes still move inland.'],
+    1817: ['Fixing the dunes', 'A decree of 1801 orders the coastal dunes stabilised with pine and marram grass. About 4,500 ha are sown by 1816. Inland, nothing has changed yet.'],
+    1857: ['The law of 19 June 1857', 'Every commune must drain and plant its common moors, then sell the planted land. Jules Chambrelent has already drained and sown about 20,000 ha near Cestas, and Napoleon III has bought 7,400 ha at Solférino.'],
+    1876: ['The dunes are finished', 'Fixation of the dunes ends with 88,000 ha sown, now a continuous State forest along the coast. Inland, ditches and seed drills spread across the communal moors.'],
+    1890: ['The pine area doubles', 'Within about thirty years of the law, the planted pine area roughly doubles. Shepherds and their flocks give way to resin tappers.'],
+    1910: ['The golden tree', 'Resin tapping becomes an industry. By the early 1920s it employs 20,000 to 25,000 tappers. Most of the old moorland is now forest.'],
+    1940: ['A million hectares', 'The massif is close to its largest extent. War brings labour shortages, and the undergrowth is no longer cleared.'],
+    1950: ['The fire decade', 'Fires in the 1940s burn about 40% of the massif. In 1949 alone 131,300 ha burn, including the Cestas–Saucats fire of August 1949: about 50,000 ha and 82 dead.'],
+    1965: ['Replanted in rows', 'The burned land is replanted in straight lines, crossed by firebreaks, tracks and water points: the DFCI fire-defence network born of 1949. The first large farm clearings appear.'],
+    1980: ['Maize clearings', 'In the 1960s and 70s, blocks of forest and moor are cleared for irrigated maize. From 1979 the share of forest stays stable. Resin tapping is dying out; the last stops in 1990.'],
+    2000: ['Storm Martin', 'On 27 December 1999 storm Martin strongly hits more than 120,000 ha and brings down about 27 million m³ of wood.'],
+    2009: ['Storm Klaus', 'On 24 January 2009 storm Klaus damages about 300,000 ha and fells about 40 million m³ of wood, the worst blow since 1949.'],
+    2021: ['Replanted again', 'The Klaus clearings have been replanted. The massif holds about 988,000 ha of forest, nearly three-quarters of its area.'],
+    2022: ['Landiras and La Teste', 'In July and August 2022 fires at Landiras and La Teste-de-Buch burn about 30,000 ha, the most since 1949.'],
+    2026: ['Saumos and Biscarrosse', 'In July 2026 the Saumos fire burns about 42,000 ha and the Biscarrosse fire about 3,600 ha. The 2022 burns are still regrowing. Burned land stays forest land and will be replanted.']
+  };
+  const anchor = Object.fromEntries(D.anchors.map(a => [a.year, a]));
+
+  // ---------- Map
+  const W = D.meta.width, H = D.meta.height;
+  const map = $('map');
+  map.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || map).appendChild(e); return e; };
+  el('rect', { class: 'sea', x: 0, y: 0, width: W, height: H });
+  el('path', { class: 'ctx', d: D.land });
+  el('path', { class: 'dept', d: D.depts });
+  D.labels.forEach(([t, x, y, rot]) => {
+    const isWater = /Ocean|Bassin/.test(t);
+    const tx = el('text', { class: 'lbl' + (isWater ? ' water' : ''), x, y, 'text-anchor': t === 'LOT-ET-GARONNE' ? 'end' : 'middle', transform: rot ? `rotate(${rot} ${x} ${y})` : '' });
+    tx.textContent = t;
+  });
+  const hexG = el('g', {});
+  const corners = [0, 1, 2, 3, 4, 5].map(k => [R * Math.cos(Math.PI / 180 * (60 * k + 30)), R * Math.sin(Math.PI / 180 * (60 * k + 30))]);
+  const hexEls = D.hexes.map(([x, y, z], i) => {
+    const d = 'M' + corners.map(([cx, cy]) => (x + cx).toFixed(2) + ',' + (y + cy).toFixed(2)).join('L') + 'Z';
+    const p = el('path', { d, class: 'hx M', 'data-z': z }, hexG);
+    p.style.setProperty('--d', Math.round(((i * 2654435761) % 1000) / 1000 * 280) + 'ms');
+    return p;
+  });
+  const zoneG = el('g', {});
+  const zoneEls = D.zones.map(z => el('path', { class: 'zb', d: z.path }, zoneG));
+  const LABEL_AT = { dunes: [38.5, 186, -80], medoc: [70, 60], buch: [66, 126], bordeaux: [93, 109], born: [57, 157], grande: [78, 160], marensin: [66, 211], bazadais: [128, 170], petites: [126, 197] };
+  const zlG = el('g', {});
+  D.zones.forEach(z => {
+    const [x, y, rot] = LABEL_AT[z.id] || [z.label[0], z.label[1], 0];
+    const parts = ({ buch: ['Pays de', 'Buch'], bordeaux: ['Landes', 'bordelaises'], petites: ['Petites', 'Landes'], grande: ['Grande', 'Lande'] })[z.id] || z.name.split(' & ').map((p, k) => (k ? '& ' : '') + p);
+    const t = el('text', { class: 'zl', x, y, 'text-anchor': 'middle', transform: rot ? `rotate(${rot} ${x} ${y})` : '' }, zlG);
+    parts.forEach((pt, k) => { const s = el('tspan', { x, dy: k ? '4.6' : (parts.length > 1 ? '-1.6' : '0') }, t); s.textContent = pt; });
+  });
+  const townG = el('g', {});
+  D.towns.forEach(([n, x, y]) => {
+    const g = el('g', { class: 'town' }, townG);
+    el('circle', { cx: x, cy: y, r: .9 }, g);
+    const left = x > W * .62;
+    const t = el('text', { x: left ? x - 1.8 : x + 1.8, y: y + 1.2, 'text-anchor': left ? 'end' : 'start' }, g); t.textContent = n;
+  });
+  const fireG = el('g', {});
+  // scale bar 50 km + north
+  const sc = el('g', { class: 'scale' });
+  el('line', { x1: 8, y1: H - 8, x2: 58, y2: H - 8 }, sc);
+  el('line', { x1: 8, y1: H - 9.6, x2: 8, y2: H - 6.4 }, sc); el('line', { x1: 58, y1: H - 9.6, x2: 58, y2: H - 6.4 }, sc);
+  const st = el('text', { x: 33, y: H - 10.5, 'text-anchor': 'middle' }, sc); st.textContent = '50 km';
+  el('path', { d: `M${W - 9},${H - 22} l3,8 l-3,-2 l-3,2z`, fill: 'currentColor', style: 'fill:var(--ink)' }, sc);
+  const nt = el('text', { x: W - 9, y: H - 9, 'text-anchor': 'middle' }, sc); nt.textContent = 'N';
+
+  // ---------- Legend
+  const CATS = [['F', 'Pine forest', '--forest'], ['D', 'Burned or storm-hit', '--burn'], ['A', 'Farmland & towns', '--farm'], ['M', 'Moor & heath', '--moor']];
+  $('legend').innerHTML = CATS.map(([k, n, c]) => `<div class="lg"><i style="background:var(${c})"></i><b>${n}</b><span id="lg${k}"></span></div>`).join('');
+
+  // ---------- Ticks
+  const tickYears = [1780, 1857, 1910, 1950, 1980, 2009, 2026];
+  $('ticks').innerHTML = tickYears.map(y => `<span style="left:${SNAP.indexOf(y) / (SNAP.length - 1) * 100}%">${y}</span>`).join('');
+
+  // ---------- Zones list
+  const zoneIdx = D.zones.map((_, i) => i);
+  $('zones').innerHTML = D.zones.map((z, i) => `<button class="zone-row" type="button" data-i="${i}"><span class="zr-name">${z.name}</span><span class="zr-bar" id="zb${i}"><i style="background:var(--forest)"></i><i style="background:var(--burn)"></i><i style="background:var(--farm)"></i><i style="background:var(--moor)"></i></span><span class="zr-v" id="zv${i}"></span></button>`).join('');
+
+  // ---------- Chart
+  const chart = $('chart');
+  const CW = 440, CH = 230, m = { l: 52, r: 8, t: 16, b: 26 };
+  const X = y => m.l + (y - 1780) / (2026 - 1780) * (CW - m.l - m.r);
+  const total = D.meta.massifHa;
+  const Y = v => CH - m.b - v / total * (CH - m.t - m.b);
+  // chart series from anchors, with quiet years added between storm and fire spikes
+  const quiet = { 1998: 2000, 2005: 2000, 2008: 2009, 2015: 2009, 2020: 2021 };
+  const pts = D.anchors.map(a => ({ y: a.year, F: a.forest_land_ha, Dm: a.damaged_ha, A: a.farmland_ha, doc: a.status === 'documented' }));
+  Object.entries(quiet).forEach(([yr, ref]) => { const a = anchor[ref]; pts.push({ y: +yr, F: a.forest_land_ha, Dm: 0, A: a.farmland_ha, q: true }); });
+  pts.sort((a, b) => a.y - b.y);
+  const lakes = D.hexes.length && Object.values(D.states)[0].split('').filter(c => c === 'W').length * HA;
+  const layers = [
+    { c: '--forest', lo: p => 0, hi: p => p.F - p.Dm },
+    { c: '--burn', lo: p => p.F - p.Dm, hi: p => p.F },
+    { c: '--farm', lo: p => p.F, hi: p => p.F + p.A },
+    { c: '--moor', lo: p => p.F + p.A, hi: p => total - lakes }
+  ];
+  const cs = (tag, attrs) => el(tag, attrs, chart);
+  [0, 500000, 1000000].forEach(v => { cs('line', { class: 'grid-l', x1: m.l, x2: CW - m.r, y1: Y(v), y2: Y(v) }); const t = cs('text', { class: 'ax', x: m.l - 6, y: Y(v) + 3.5, 'text-anchor': 'end' }); t.textContent = v ? fmtK(v) + ' ha' : '0'; });
+  layers.forEach(L => {
+    const up = pts.map(p => `${X(p.y).toFixed(1)},${Y(L.hi(p)).toFixed(1)}`);
+    const dn = pts.slice().reverse().map(p => `${X(p.y).toFixed(1)},${Y(L.lo(p)).toFixed(1)}`);
+    cs('path', { d: 'M' + up.join('L') + 'L' + dn.join('L') + 'Z', style: `fill:var(${L.c})`, opacity: L.c === '--moor' ? .75 : 1 });
+  });
+  cs('path', { d: 'M' + pts.map(p => `${X(p.y).toFixed(1)},${Y(p.F).toFixed(1)}`).join('L'), fill: 'none', style: 'stroke:var(--ink)', 'stroke-width': 1.2, opacity: .55 });
+  pts.filter(p => !p.q).forEach(p => cs('circle', { class: 'pt', cx: X(p.y), cy: Y(p.F), r: 3.2, style: p.doc ? 'fill:var(--ink)' : 'fill:var(--surface);stroke:var(--ink)', 'stroke-width': p.doc ? 1.5 : 1.3 }));
+  [1800, 1850, 1900, 1950, 2000].forEach(y => { const t = cs('text', { class: 'ax', x: X(y), y: CH - 8, 'text-anchor': 'middle' }); t.textContent = y; });
+  const cur = cs('line', { class: 'cur', y1: m.t - 4, y2: CH - m.b });
+  const curT = cs('text', { class: 'cur-t', y: m.t + 1 });
+  chart.addEventListener('click', e => {
+    const r = chart.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * CW;
+    const yr = 1780 + (x - m.l) / (CW - m.l - m.r) * 246;
+    let best = 0; SNAP.forEach((s, i) => { if (Math.abs(s - yr) < Math.abs(SNAP[best] - yr)) best = i; });
+    stop(); go(best);
+  });
+
+  // ---------- Sources
+  const seen = new Set();
+  D.anchors.forEach(a => (a.source || '').split(';').map(s => s.trim()).filter(Boolean).forEach(s => seen.add(s)));
+  seen.add('https://github.com/gregoiredavid/france-geojson');
+  $('sources').innerHTML = [...seen].map(u => { let h = u; try { h = new URL(u).hostname.replace('www.', ''); } catch (e) {} return `<li><a href="${u}" target="_blank" rel="noopener">${h}</a></li>`; }).join('');
+
+  // ---------- State
+  let idx = 0, sel = null, timer = null;
+  const slider = $('slider');
+
+  function counts(year) {
+    const zs = D.zoneStats[year];
+    const tot = [0, 0, 0, 0, 0];
+    zs.forEach(z => z.forEach((v, k) => tot[k] += v));
+    return { zs, tot };
+  }
+
+  function go(i) {
+    idx = Math.max(0, Math.min(SNAP.length - 1, i));
+    const year = SNAP[idx], s = D.states[year], a = anchor[year];
+    slider.value = idx; slider.style.setProperty('--p', idx / (SNAP.length - 1) * 100 + '%');
+    $('ybYear').textContent = year;
+    $('ybTitle').textContent = STORY[year][0];
+    for (let k = 0; k < hexEls.length; k++) {
+      const c = s[k];
+      if (hexEls[k].__c !== c) { hexEls[k].setAttribute('class', 'hx ' + c + (sel !== null && D.hexes[k][2] === sel ? ' sel' : '')); hexEls[k].__c = c; }
+    }
+    const { zs, tot } = counts(year);
+    $('lgF').textContent = fmt(tot[0] * HA) + ' ha';
+    $('lgD').textContent = fmt(tot[1] * HA) + ' ha';
+    $('lgA').textContent = fmt(tot[2] * HA) + ' ha';
+    $('lgM').textContent = fmt(tot[3] * HA) + ' ha';
+    // story
+    $('storyTitle').textContent = STORY[year][0];
+    $('storyText').textContent = STORY[year][1];
+    const doc = a.status === 'documented';
+    $('badge').textContent = doc ? 'Massif total: documented' : 'Massif total: estimate';
+    $('badge').className = 'badge' + (doc ? ' doc' : '');
+    $('sForest').textContent = '≈ ' + fmtK(a.forest_land_ha) + ' ha';
+    if (a.damaged_ha > 0) {
+      $('sShare').textContent = fmtK(a.damaged_ha) + ' ha';
+      $('sShareK').textContent = a.damage_kind === 'storm' ? 'hit by the storm' : 'burned or still regrowing';
+      $('sDeltaBox').className = 'stat burn';
+    } else {
+      $('sShare').textContent = Math.round(a.forest_land_ha / total * 100) + '%';
+      $('sShareK').textContent = 'of the massif covered';
+      $('sDeltaBox').className = 'stat';
+    }
+    // zones
+    zs.forEach((z, i) => {
+      const land = z[0] + z[1] + z[2] + z[3] || 1;
+      const bars = $('zb' + i).children;
+      [0, 1, 2, 3].forEach(k => bars[k].style.width = (z[k] / land * 100) + '%');
+      $('zv' + i).textContent = fmtK((z[0] + z[1]) * HA) + ' ha';
+    });
+    // fires
+    fireG.innerHTML = '';
+    (D.fires[year] || []).forEach(([n, x, y, ha]) => {
+      const g = el('g', { class: 'fire' }, fireG);
+      const r = Math.sqrt(ha / HA) * R * .95;
+      el('circle', { cx: x, cy: y, r }, g);
+      const right = x >= 70;
+      const t = el('text', { x: right ? x + r + 1.5 : x - r - 1.5, y: y + 1.2, 'text-anchor': right ? 'start' : 'end' }, g);
+      t.textContent = n.replace(/ fire.*$/, '').replace(/ fires$/, '') + ' · ' + fmtK(ha) + ' ha';
+    });
+    // chart cursor
+    const cx = X(year); cur.setAttribute('x1', cx); cur.setAttribute('x2', cx);
+    curT.setAttribute('x', cx); curT.setAttribute('text-anchor', cx > CW - 60 ? 'end' : cx < 80 ? 'start' : 'middle'); curT.textContent = year;
+    if (sel !== null) zoneDetail();
+  }
+
+  function selectZone(i) {
+    sel = (sel === i) ? null : i;
+    map.classList.toggle('dim', sel !== null);
+    hexEls.forEach((p, k) => p.classList.toggle('sel', sel !== null && D.hexes[k][2] === sel));
+    zoneEls.forEach((p, k) => p.classList.toggle('on', k === sel));
+    if (sel !== null) zoneG.appendChild(zoneEls[sel]);
+    document.querySelectorAll('.zone-row').forEach((r, k) => r.classList.toggle('on', k === sel));
+    $('zoneDetail').hidden = sel === null;
+    if (sel !== null) zoneDetail();
+  }
+
+  function zoneDetail() {
+    const z = D.zones[sel], year = SNAP[idx];
+    const now = D.zoneStats[year][sel], first = D.zoneStats[1780][sel];
+    const forest = (now[0] + now[1]) * HA, share = Math.round(forest / z.ha * 100);
+    $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span>${z.blurb}</span><span>${fmt(z.ha)} ha in all · in ${year}: <b>${fmt(forest)} ha of forest</b> (${share}%)${year > 1780 ? ', up from ' + fmt((first[0] + first[1]) * HA) + ' ha in 1780' : ''}${now[1] ? ' · ' + fmt(now[1] * HA) + ' ha burned or storm-hit' : ''}.</span><button type="button" id="clearZone">Show all zones</button>`;
+    $('clearZone').onclick = () => selectZone(sel);
+  }
+
+  document.querySelectorAll('.zone-row').forEach(r => r.addEventListener('click', () => selectZone(+r.dataset.i)));
+  hexG.addEventListener('click', e => { const z = e.target.getAttribute && e.target.getAttribute('data-z'); if (z !== null) selectZone(+z); });
+  slider.addEventListener('input', () => { stop(); go(+slider.value); });
+  $('prev').onclick = () => { stop(); go(idx - 1); };
+  $('next').onclick = () => { stop(); go(idx + 1); };
+  $('play').onclick = () => timer ? stop() : start();
+  function start() {
+    if (idx === SNAP.length - 1) go(0);
+    timer = setInterval(() => idx >= SNAP.length - 1 ? stop() : go(idx + 1), reduce ? 2600 : 1900);
+    $('playIcon').innerHTML = '<path d="M2 1h2.2v8H2zM5.8 1H8v8H5.8z"/>'; $('play').setAttribute('aria-label', 'Pause');
+  }
+  function stop() { if (!timer) return; clearInterval(timer); timer = null; $('playIcon').innerHTML = '<path d="M2.5 1 8.5 5 2.5 9z"/>'; $('play').setAttribute('aria-label', 'Play'); }
+  document.addEventListener('keydown', e => { if (e.target === slider) return; if (e.key === 'ArrowRight') { stop(); go(idx + 1); } if (e.key === 'ArrowLeft') { stop(); go(idx - 1); } });
+
+  go(0);
+})();
+</script>

@@ -6,9 +6,13 @@ The project is the visual companion to an essay arguing that state-flattened ris
 
 ## Forest history map
 
-[`docs/forest-history/index.html`](docs/forest-history/index.html) is an interactive timeline of the massif from the 18th century to 2026. Drag the slider to step through the Cassini map, the état-major map, the 1950 map, IGN aerial photos (1950–65, 2000–05, today) and Sentinel-2 mosaics (2021, 2023). Major fires appear as circles of equal area, and a second slider blends in today's aerial photo for comparison.
+[`docs/forest-history/index.html`](docs/forest-history/index.html) is a hexagon map of the massif from 1780 to 2026. Each hexagon is 1,500 ha and shows pine forest, burned or storm-hit land, farmland or moor for 15 snapshot years, across nine zones from the Médoc to Dax. A stacked chart shows the whole massif over time and a table gives forest hectares per zone.
 
-It is a single static page (Leaflet from cdnjs, tiles from IGN Géoplateforme and EOX), so it runs from GitHub Pages or straight from a local file.
+- `scripts/build_forest_history.py` builds it: it selects 277 communes (~1.33 million ha), defines the zones, lays the hexagon grid and allocates the totals.
+- `data/reference/forest_history_anchors.csv` holds the massif-wide figures, each marked documented or estimate, with sources.
+- The split between zones is an estimate; which hexagons inside a zone are green is illustrative.
+
+Rebuild with `python scripts/build_forest_history.py` (downloads commune boundaries from gregoiredavid/france-geojson on first run). The page is self-contained, with no external map tiles.
 
 ## Questions
 

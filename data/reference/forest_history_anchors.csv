@@ -1,0 +1,16 @@
+year,forest_land_ha,damaged_ha,damage_kind,farmland_ha,status,note,source
+1780,250000,0,,45000,documented,"~250,000 ha wooded at the end of the 18th century, mostly coastal and riverside woods",https://www.oceopin.com/histoire-foret-landes/ ; https://www.abelard.org/france/les_landes_forestry_industry1.php
+1817,255000,0,,45000,estimate,"~4,500 ha of dunes fixed by 1816",https://fr.wikipedia.org/wiki/Fixation_des_dunes_en_Aquitaine
+1857,340000,0,,48000,estimate,"Core forest + ~70,000 ha of dunes sown + ~20,000 ha drained and sown under Chambrelent by 1855",https://www.le-bouillon-larochelle.fr/12-186756-40-000-km-de-fosses-creuses-a-la-main-des-1857-comment-la-france-a-prive-les-landes-de-leur-capacite-a-retenir-la-pluie/
+1876,430000,0,,50000,estimate,"Dune fixation completed: 88,000 ha sown",https://fr.wikipedia.org/wiki/Fixation_des_dunes_en_Aquitaine
+1890,650000,0,,52000,estimate,"Planted pine area roughly doubles within ~30 years of the 1857 law",https://www.sorbonne-universite.fr/actualites/dans-les-forets-des-landes-le-stockage-de-co2-atteint-ses-limites-et-ce-nest-pas
+1910,850000,0,,55000,estimate,"Resin industry boom; moors largely planted",
+1940,1000000,0,,60000,estimate,"Massif close to one million hectares before the war",https://nouvelle-aquitaine.cnpf.fr/sites/socle/files/cnpf-old/30_foret_landes_gascogne_1.pdf
+1950,1000000,400000,fire,62000,documented,"Fires of the 1940s burn ~40% of the massif (~400,000 ha); 1949 alone 131,300 ha, incl. ~50,000 ha around Cestas and Saucats",https://nouvelle-aquitaine.cnpf.fr/sites/socle/files/cnpf-old/30_foret_landes_gascogne_1.pdf ; https://www.animapro.fr/actualites/incendie-landes-1949-131300-hectares-record-jamais-egale-massif.html
+1965,1000000,60000,fire,120000,estimate,"Replanting in rows with firebreaks; first large farm clearings",
+1980,990000,0,,215000,estimate,"Maize clearings of the 1960s-70s; forest cover stable since 1979",https://nouvelle-aquitaine.cnpf.fr/sites/socle/files/cnpf-old/30_foret_landes_gascogne_1.pdf
+2000,990000,120000,storm,225000,documented,"Storm Martin (27 Dec 1999): more than 120,000 ha strongly affected, ~27 million m3 down",https://nouvelle-aquitaine.cnpf.fr/sites/socle/files/cnpf-old/30_foret_landes_gascogne_1.pdf
+2009,990000,300000,storm,230000,documented,"Storm Klaus (24 Jan 2009): ~300,000 ha damaged, ~40 million m3 down",https://en.wikipedia.org/wiki/Landes_forest ; https://fresques.ina.fr/landes/parcours/0003/les-landes-un-departement-avant-tout-forestier.html
+2021,988000,0,,235000,estimate,"Forest replanted after Klaus",
+2022,988000,30000,fire,235000,documented,"Landiras and La Teste-de-Buch fires: ~30,000 ha",https://www.gironde.gouv.fr/contenu/telechargement/64007/426953/file/RETEX%20incendies%20-%20Gironde%20et%20Landes%20-%20octobre%202022.pdf
+2026,987950,75600,fire,235000,documented,"IFN: 987,950 ha of forest (74.3% cover). Burned: Saumos ~42,000 ha and Biscarrosse ~3,600 ha in July 2026, plus 2022 burns still regrowing",https://nouvelle-aquitaine.cnpf.fr/sites/socle/files/cnpf-old/30_foret_landes_gascogne_1.pdf ; https://www.notre-planete.info/actualites/506-feux-foret-incendie-Gironde-juillet-2026
