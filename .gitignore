@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data (keep folders, not contents)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# Geo outputs
+*.tif
+*.gpkg
+*.parquet
+output/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+.env
