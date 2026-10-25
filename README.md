@@ -14,6 +14,20 @@ The project is the visual companion to an essay arguing that state-flattened ris
 
 Rebuild with `python scripts/build_forest_history.py` (downloads commune boundaries from gregoiredavid/france-geojson on first run). The page is self-contained, with no external map tiles.
 
+## Fire history map
+
+[`docs/fire-history/index.html`](docs/fire-history/index.html) maps every forest fire recorded by BDIFF in the massif from 2006 to 2025: 4,407 fires and 39,064 ha. It uses the same zones and hexagons as the forest map. You can switch between where fires start (starts per 10,000 ha per year) and where land burned (circles drawn to scale), and view any single year. It also has a year-by-year chart, each zone's share of the area burned against its share of the land, the largest fires, a month profile and causes.
+
+What the first 20 years show:
+- **Concentration:** 5 fires burned 75% of the area; 80% of fires stay under 1 ha.
+- **Season:** July holds 55% of the area burned.
+- **Geography:** Landes bordelaises is 12% of the massif but 54% of the area burned (×4.5, driven by Landiras 2022). The southern zones burn 5–10 times less than their size.
+
+Notes:
+- `scripts/build_fire_history.py` builds it from `data/reference/bdiff/` (BDIFF export, Licence Ouverte). It reuses `build_massif()` and `base_map()` from the forest script.
+- BDIFF locates fires by commune only, and holds these départements only from 2006.
+- 2026 fires come from press reports, shown apart and kept out of all totals.
+
 ## Questions
 
 1. Where in the Landes massif is fire risk concentrated, and what drives it (fuel, weather, access, wildland-urban interface)?
@@ -26,7 +40,7 @@ To verify licences, coverage and formats before ingesting.
 
 | Layer | Source | Use |
 |---|---|---|
-| Historical fires | BDIFF (Base de Données sur les Incendies de Forêts en France) | Ignition points and burned area by commune |
+| Historical fires | BDIFF (Base de Données sur les Incendies de Forêts en France) | **In use** (2006–2025): fires by commune, area, cause |
 | Burned-area perimeters | Copernicus EMS / EFFIS | Fire footprints, esp. 2022 and 2026 |
 | Fire weather | Météo-France IFM (Indice Forêt Météo, the French FWI) | Daily danger, seasonal climatology |
 | Forest cover & species | IGN BD Forêt v2 | Fuel type (maritime pine monoculture vs. mixed/broadleaf) |

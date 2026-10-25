@@ -23,6 +23,7 @@ import math
 import random
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 
 import geopandas as gpd
 import numpy as np
@@ -185,8 +186,8 @@ def allocate(total: int, raw: dict, cap: dict) -> dict:
     return out
 
 
-def main():
-    random.seed(7)
+def build_massif() -> SimpleNamespace:
+    """Communes, outline, zones and hexagon grid of the massif (shared by all maps)."""
     communes = fetch_communes()
     reps = communes.representative_point().to_crs(4326)
     inside = reps.within(Polygon(MASSIF_LIMIT)) | communes["nom"].isin(EDGE_COMMUNES)
@@ -234,6 +235,76 @@ def main():
         d = hexes.distance(p).sort_values()
         water.update(d.index[:k])
 
+    zone_ids = [z["id"] for z in ZONES]
+    zone_of = hexes.zone.to_dict()
+    members = {z: [i for i in hexes.index if zone_of[i] == z] for z in zone_ids}
+    return SimpleNamespace(communes=communes, massif_c=massif_c, massif=massif, hexes=hexes, water=water,
+                           zone_ids=zone_ids, zone_of=zone_of, members=members,
+                           nz={z: len(members[z]) for z in zone_ids}, bounds=(minx, miny, maxx, maxy))
+
+
+def base_map(m: SimpleNamespace) -> SimpleNamespace:
+    """SVG geometry shared by the maps: 1 unit = 1 km, north up."""
+    minx, miny, maxx, maxy = m.bounds
+    hexes = m.hexes
+    deps = fetch_departements()
+    pad = 14000
+    bx0, by0, bx1, by1 = minx - pad, miny - pad, maxx + pad, maxy + pad
+    bbox = Polygon([(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)])
+
+    def sx(x):
+        return round((x - bx0) / 1000, 2)
+
+    def sy(y):
+        return round((by1 - y) / 1000, 2)
+
+    def path(geom, tol=300):
+        geom = geom.simplify(tol)
+        polys = [geom] if geom.geom_type == "Polygon" else list(getattr(geom, "geoms", []))
+        out = []
+        for p in polys:
+            if p.geom_type != "Polygon" or p.is_empty:
+                continue
+            for ring in [p.exterior, *p.interiors]:
+                pts = list(ring.coords)
+                out.append("M" + "L".join(f"{sx(x)},{sy(y)}" for x, y in pts) + "Z")
+        return "".join(out)
+
+    def lines(geom, tol=300):
+        geom = geom.simplify(tol)
+        parts = [geom] if geom.geom_type == "LineString" else list(getattr(geom, "geoms", []))
+        return "".join("M" + "L".join(f"{sx(x)},{sy(y)}" for x, y in p.coords) for p in parts if p.geom_type == "LineString")
+
+    land_ctx = unary_union([gm.intersection(bbox) for gm in deps.geometry if gm.intersects(bbox)])
+    dept_lines = unary_union([gm.boundary.intersection(bbox.buffer(-1)) for gm in deps.geometry if gm.intersects(bbox)])
+    dept_lines = dept_lines.intersection(land_ctx.buffer(-800))
+    zone_paths = []
+    for Z in ZONES:
+        ids = m.members[Z["id"]]
+        shape = unary_union([hexagon(hexes.x[i], hexes.y[i], HEX_R + 2) for i in ids]).intersection(m.massif.buffer(50))
+        lab = shape.representative_point()
+        zone_paths.append(dict(id=Z["id"], name=Z["name"], blurb=Z["blurb"], hexes=m.nz[Z["id"]],
+                               ha=m.nz[Z["id"]] * HEX_HA, path=path(shape, 200), label=[sx(lab.x), sy(lab.y)]))
+    data = dict(
+        meta=dict(hexHa=HEX_HA, hexR=round(HEX_R / 1000, 3), width=sx(bx1), height=sy(by0),
+                  massifHa=len(hexes) * HEX_HA, communes=len(m.massif_c)),
+        hexes=[[sx(hexes.x[i]), sy(hexes.y[i]), m.zone_ids.index(m.zone_of[i])] for i in hexes.index],
+        zones=zone_paths,
+        land=path(land_ctx, 400),
+        massif=path(m.massif, 250),
+        depts=lines(dept_lines, 400),
+        labels=[[t, sx(to_l93(lon, lat)[0]), sy(to_l93(lon, lat)[1]), rot] for t, lat, lon, rot in LABELS],
+        towns=[[nm, sx(to_l93(lon, lat)[0]), sy(to_l93(lon, lat)[1])] for nm, lat, lon in TOWNS],
+    )
+    return SimpleNamespace(sx=sx, sy=sy, path=path, data=data)
+
+
+def main():
+    random.seed(7)
+    m = build_massif()
+    communes, massif_c, massif, hexes, water = m.communes, m.massif_c, m.massif, m.hexes, m.water
+    minx, miny, maxx, maxy = m.bounds
+
     # rankings (higher = earlier / more likely)
     nf1, nf2 = value_noise(1, 22000), value_noise(2, 7000)
     na1, na2 = value_noise(3, 16000), value_noise(4, 6000)
@@ -253,10 +324,7 @@ def main():
         pb[i] = nb(x, y) + .2 * random.random()
         ps[i] = ns(x, y) + .2 * random.random()
 
-    zone_ids = [z["id"] for z in ZONES]
-    zone_of = hexes.zone.to_dict()
-    members = {z: [i for i in hexes.index if zone_of[i] == z] for z in zone_ids}
-    nz = {z: len(members[z]) for z in zone_ids}
+    zone_ids, zone_of, members, nz = m.zone_ids, m.zone_of, m.members, m.nz
     land = {z: [i for i in members[z] if i not in water] for z in zone_ids}
 
     anchors = {int(r["year"]): r for r in csv.DictReader(ANCHORS.open())}
@@ -342,58 +410,14 @@ def main():
         tot = [sum(zs[k] for zs in zone_stats[year]) * HEX_HA for k in range(5)]
         print(year, "forest", tot[0] + tot[1], "damaged", tot[1], "farm", tot[2], "moor", tot[3])
 
-    # -------- SVG geometry (1 unit = 1 km, north up)
-    deps = fetch_departements()
-    pad = 14000
-    bx0, by0, bx1, by1 = minx - pad, miny - pad, maxx + pad, maxy + pad
-    bbox = Polygon([(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)])
-
-    def sx(x):
-        return round((x - bx0) / 1000, 2)
-
-    def sy(y):
-        return round((by1 - y) / 1000, 2)
-
-    def path(geom, tol=300):
-        geom = geom.simplify(tol)
-        polys = [geom] if geom.geom_type == "Polygon" else list(getattr(geom, "geoms", []))
-        out = []
-        for p in polys:
-            if p.geom_type != "Polygon" or p.is_empty:
-                continue
-            for ring in [p.exterior, *p.interiors]:
-                pts = list(ring.coords)
-                out.append("M" + "L".join(f"{sx(x)},{sy(y)}" for x, y in pts) + "Z")
-        return "".join(out)
-
-    def lines(geom, tol=300):
-        geom = geom.simplify(tol)
-        parts = [geom] if geom.geom_type == "LineString" else list(getattr(geom, "geoms", []))
-        return "".join("M" + "L".join(f"{sx(x)},{sy(y)}" for x, y in p.coords) for p in parts if p.geom_type == "LineString")
-
-    land_ctx = unary_union([gm.intersection(bbox) for gm in deps.geometry if gm.intersects(bbox)])
-    dept_lines = unary_union([gm.boundary.intersection(bbox.buffer(-1)) for gm in deps.geometry if gm.intersects(bbox)])
-    dept_lines = dept_lines.intersection(land_ctx.buffer(-800))
-    zone_paths = []
-    for Z in ZONES:
-        ids = members[Z["id"]]
-        shape = unary_union([hexagon(hexes.x[i], hexes.y[i], HEX_R + 2) for i in ids]).intersection(massif.buffer(50))
-        lab = shape.representative_point()
-        zone_paths.append(dict(id=Z["id"], name=Z["name"], blurb=Z["blurb"], hexes=nz[Z["id"]],
-                               ha=nz[Z["id"]] * HEX_HA, path=path(shape, 200), label=[sx(lab.x), sy(lab.y)]))
-
+    bm = base_map(m)
+    sx, sy, b = bm.sx, bm.sy, bm.data
     data = dict(
-        meta=dict(hexHa=HEX_HA, hexR=round(HEX_R / 1000, 3), width=sx(bx1), height=sy(by0), massifHa=n * HEX_HA,
-                  communes=len(massif_c), snapshots=SNAPSHOTS),
-        hexes=[[sx(hexes.x[i]), sy(hexes.y[i]), zone_ids.index(zone_of[i])] for i in hexes.index],
+        meta={**b["meta"], "snapshots": SNAPSHOTS},
+        hexes=b["hexes"],
         states={str(k): v for k, v in states.items()},
         zoneStats={str(k): v for k, v in zone_stats.items()},
-        zones=zone_paths,
-        land=path(land_ctx, 400),
-        massif=path(massif, 250),
-        depts=lines(dept_lines, 400),
-        labels=[[t, sx(to_l93(lon, lat)[0]), sy(to_l93(lon, lat)[1]), rot] for t, lat, lon, rot in LABELS],
-        towns=[[nm, sx(to_l93(lon, lat)[0]), sy(to_l93(lon, lat)[1])] for nm, lat, lon in TOWNS],
+        zones=b["zones"], land=b["land"], massif=b["massif"], depts=b["depts"], labels=b["labels"], towns=b["towns"],
         fires={str(y): [[nm, sx(to_l93(lon, lat)[0]), sy(to_l93(lon, lat)[1]), ha] for nm, lat, lon, ha in v] for y, v in FIRES.items()},
         anchors=[{k: (int(float(v)) if k in ("year", "forest_land_ha", "damaged_ha", "farmland_ha") else v)
                   for k, v in r.items()} for r in anchors.values()],
@@ -401,20 +425,20 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")))
     print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size / 1024:.0f} KB)")
-    render_page(OUT.read_text())
+    render_page(OUT.read_text(), OUT.parent, "atlas.artifact.html")
 
 
-def render_page(data_json: str):
-    """Inline the data into the page template; writes a standalone index.html."""
-    tpl = (OUT.parent / "template.html").read_text()
+def render_page(data_json: str, folder: Path, artifact_name: str):
+    """Inline the data into folder/template.html; writes a standalone index.html and the artifact body."""
+    tpl = (folder / "template.html").read_text()
     body = tpl.replace("/*DATA*/null", data_json)
     head, _, rest = body.partition("<style>")
     page = ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
             + head + "<style>" + rest.replace("</style>", "</style>\n</head>\n<body>", 1) + "\n</body>\n</html>\n")
-    (OUT.parent / "index.html").write_text(page)
-    (OUT.parent / "atlas.artifact.html").write_text(body)
-    print("wrote docs/forest-history/index.html")
+    (folder / "index.html").write_text(page)
+    (folder / artifact_name).write_text(body)
+    print(f"wrote {(folder / 'index.html').relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
