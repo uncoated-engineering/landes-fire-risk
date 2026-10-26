@@ -10,7 +10,10 @@ both maps share one geography:
 - fire starts are spread evenly over the hexagons of the fire's commune;
 - a fire's area is credited to its commune (BDIFF puts the whole area on the
   commune where the fire started, even when it spread further);
-- zone figures split each commune between zones by its share of hexagons.
+- zone figures split each commune between zones by its share of hexagons;
+- the largest fires are the exception: they are drawn with their EFFIS
+  burned-area outline (data/reference/fire_outlines.geojson, from
+  scripts/fetch_fire_outlines.py) and their area is split between zones by it.
 
 Fires in communes outside the massif are counted but not mapped.
 
@@ -23,7 +26,9 @@ import sys
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import shapely
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_forest_history as fh  # noqa: E402
@@ -49,6 +54,14 @@ PRESS_2026 = [
 ]
 PRESS_SOURCE = "https://www.notre-planete.info/actualites/506-feux-foret-incendie-Gironde-juillet-2026"
 
+OUTLINES = ROOT / "data" / "reference" / "fire_outlines.geojson"
+# Fires placed by their EFFIS outline: BDIFF (commune code, date of first alert) or press 2026 (commune code, "2026")
+OUTLINE_OF = {("33225", "2022-07-12"): 206257, ("33225", "2022-08-12"): 208962,
+              ("40200", "2022-08-09"): 208962,  # Moustey: the August Landiras fire spreading into Landes
+              ("33529", "2022-07-12"): 205433, ("33503", "2022-09-12"): 210476, ("33125", "2017-04-20"): 12926,
+              ("33503", "2026"): 562583, ("40046", "2026"): 567357}
+EFFIS_SOURCE = "https://forest-fire.emergency.copernicus.eu/"
+
 
 def load_bdiff() -> pd.DataFrame:
     df = pd.read_csv(BDIFF, sep=";", skiprows=3, dtype={"Département": str, "Code INSEE": str})
@@ -56,6 +69,26 @@ def load_bdiff() -> pd.DataFrame:
     df["date"] = pd.to_datetime(df["Date de première alerte"])
     assert not df.duplicated(["Année", "Numéro", "Département"]).any(), "duplicate fires in export"
     return df
+
+
+def fire_outlines(m) -> gpd.GeoDataFrame:
+    """EFFIS outlines of the largest fires (Lambert-93), with the share of each one's area that lies in each
+    hexagon of the massif (`hexShare`, rows sum to 1)."""
+    o = gpd.read_file(OUTLINES).to_crs(2154)
+    o["year"] = o.firedate.astype(str).str.slice(0, 4).astype(int)
+    hexes = np.array([fh.hexagon(x, y) for x, y in zip(m.hexes.x, m.hexes.y)])
+    inside = shapely.intersection(o.geometry.values, m.massif)
+    oi, hi = shapely.STRtree(hexes).query(inside, predicate="intersects")
+    share = np.zeros((len(o), len(hexes)))
+    np.add.at(share, (oi, hi), shapely.area(shapely.intersection(inside[oi], hexes[hi])))
+    o["hexShare"] = list(share / share.sum(axis=1, keepdims=True))
+    return o
+
+
+def outline_index(o: gpd.GeoDataFrame, code: str, key: str) -> int:
+    """Row of `o` holding the outline of a fire (see OUTLINE_OF), or -1."""
+    eid = OUTLINE_OF.get((code, key))
+    return int(np.flatnonzero(o.effis_id.values == eid)[0]) if eid else -1
 
 
 def commune_hexes(m, df: pd.DataFrame):
@@ -101,9 +134,19 @@ def main():
 
     cause_idx = {raw: k for k, (raw, _) in enumerate(CAUSES)}
     fires = fires.sort_values("date")
+    o = fire_outlines(m)
     records = [[code_idx[r["Code INSEE"]], int(r["Année"]), r["date"].strftime("%m-%d"), round(float(r.ha), 2),
-                cause_idx.get(r["Nature"] if isinstance(r["Nature"], str) else None, len(CAUSES) - 1)]
+                cause_idx.get(r["Nature"] if isinstance(r["Nature"], str) else None, len(CAUSES) - 1),
+                outline_index(o, r["Code INSEE"], r["date"].strftime("%Y-%m-%d"))]
                for _, r in fires.iterrows()]
+    matched = sorted({rec[5] for rec in records if rec[5] >= 0} | {outline_index(o, c, "2026") for _, c, _, _ in PRESS_2026})
+    assert matched == list(range(len(o))), "every outline must match a fire"
+    hz = np.array([m.zone_ids.index(m.zone_of[h]) for h in hexes.index])
+    outlines = []
+    for _, r in o.iterrows():
+        x0, y0, x1, y1 = r.geometry.bounds
+        outlines.append([r["name"], int(r.year), bm.path(r.geometry, 120), [sx(x0), sy(y1), sx(x1), sy(y0)],
+                         [round(float(v), 4) for v in np.bincount(hz, weights=r.hexShare, minlength=len(m.zone_ids))]])
 
     # sanity checks against known fires
     by_year = fires.groupby("Année").ha.sum()
@@ -121,8 +164,9 @@ def main():
         hexComm=[code_idx[hex_code[h]] for h in hexes.index],
         causes=[label for _, label in CAUSES],
         fires=records,
-        press2026=[[name, code_idx[code], ha, note] for name, code, ha, note in PRESS_2026],
-        sources=["https://bdiff.agriculture.gouv.fr/", PRESS_SOURCE, "https://github.com/gregoiredavid/france-geojson"],
+        press2026=[[name, code_idx[code], ha, note, outline_index(o, code, "2026")] for name, code, ha, note in PRESS_2026],
+        outlines=outlines,
+        sources=["https://bdiff.agriculture.gouv.fr/", PRESS_SOURCE, EFFIS_SOURCE, "https://github.com/gregoiredavid/france-geojson"],
     )
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")))

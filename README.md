@@ -16,16 +16,17 @@ Rebuild with `python scripts/build_forest_history.py` (downloads commune boundar
 
 ## Fire history map
 
-[`docs/fire-history/index.html`](docs/fire-history/index.html) maps every forest fire recorded by BDIFF in the massif from 2006 to 2025: 4,407 fires and 39,064 ha. It uses the same zones and hexagons as the forest map. You can switch between where fires start (starts per 10,000 ha per year) and where land burned (circles drawn to scale), and view any single year. It also has a year-by-year chart, each zone's share of the area burned against its share of the land, the largest fires, a month profile and causes.
+[`docs/fire-history/index.html`](docs/fire-history/index.html) maps every forest fire recorded by BDIFF in the massif from 2006 to 2025: 4,407 fires and 39,064 ha. It uses the same zones and hexagons as the forest map. You can switch between where fires start (starts per 10,000 ha per year) and where land burned (circles drawn to scale, and the real outline of the seven largest fires), and view any single year. It also has a year-by-year chart, each zone's share of the area burned against its share of the land, the largest fires, a month profile and causes.
 
 What the first 20 years show:
 - **Concentration:** 5 fires burned 75% of the area; 80% of fires stay under 1 ha.
 - **Season:** July holds 55% of the area burned.
-- **Geography:** Landes bordelaises is 12% of the massif but 54% of the area burned (×4.5, driven by Landiras 2022). The southern zones burn 5–10 times less than their size.
+- **Geography:** Landes bordelaises is 12% of the massif but 34% of the area burned (×2.9, driven by Landiras 2022). The southern zones burn 5–10 times less than their size.
 
 Notes:
 - `scripts/build_fire_history.py` builds it from `data/reference/bdiff/` (BDIFF export, Licence Ouverte). It reuses `build_massif()` and `base_map()` from the forest script.
 - BDIFF locates fires by commune only, and holds these départements only from 2006.
+- The seven largest fires, nearly nine tenths of the area burned since 2006, are drawn and split between zones by their burned-area outline from EFFIS (`data/reference/fire_outlines.geojson`, written by `scripts/fetch_fire_outlines.py`).
 - 2026 fires come from press reports, shown apart and kept out of all totals.
 
 ## Exposure map
@@ -37,13 +38,14 @@ Notes:
 
 What it shows:
 - **Exposure:** 243,000 of the massif's 372,000 houses (65%) stand within 200 m of the forest, and 96,500 (26%) within 50 m. The share passes 75% in the inland zones (84% in the Grande Lande), but most of these houses are on the coast and around Bordeaux and Arcachon.
-- **Hazard:** 0.20% of the forest burned in an average year of 2006–2025, 1 in 490 years for a given hectare. Without 2022 it is 0.05%; with the 2026 fires, 0.42%. By zone it runs from 0.02% to 1% a year, and to 2.6% for the Médoc in the 2026 stress case.
+- **Hazard:** 0.20% of the forest burned in an average year of 2006–2025, 1 in 490 years for a given hectare. Without 2022 it is 0.05%; with the 2026 fires, 0.42%. By zone it runs from 0.02% to 0.6% a year, and to 1.5% for the Pays de Buch in the 2026 stress case.
 - **Cost:** about €25,000 per claim in 2026 (€563M for 22,500 claims in Gironde, Landes and Var) and €40,000 in 2022 (€80M for 2,000 claims across France).
+- **Cost per house near a fire:** 1,930 houses stood within 200 m of the area burned in 2022 and 5,310 in 2026, so the fires cost about €42,000 (an upper bound, as the 2022 claims cover all of France) and €98,000 per nearby house. Every building Copernicus mapped as destroyed by the 2026 Saumos fire stood within 200 m of the forest, but only 44% within 50 m, against 41% of all buildings near the fire.
 
 Notes:
 - OSM buildings are not homes: 958,000 buildings for 372,000 houses. Likely homes (solid walls, 40 to 1,000 m², no other use tagged) are weighted in each commune to its INSEE house count. Flats are left out.
 - Forest is OSM forest, woodland, heath and scrub: 957,500 ha in the massif, against 987,950 ha in the national inventory. Pines inside housing estates are mapped as residential land, so the coastal towns built under the pines are undercounted.
-- Burned area is placed in the commune where each fire started, as on the fire map, so the 2026 Saumos fire counts entirely for the Médoc.
+- Burned area is placed in the commune where each fire started, as on the fire map, except for the seven largest fires, which are placed by their EFFIS outline. `data/reference/emsr899_buildings.geojson` holds the buildings Copernicus EMS graded after the 2026 Saumos fire.
 
 ## Questions
 
@@ -58,7 +60,7 @@ To verify licences, coverage and formats before ingesting.
 | Layer | Source | Use |
 |---|---|---|
 | Historical fires | BDIFF (Base de Données sur les Incendies de Forêts en France) | **In use** (2006–2025): fires by commune, area, cause |
-| Burned-area perimeters | Copernicus EMS / EFFIS | Fire footprints, esp. 2022 and 2026 |
+| Burned-area perimeters | EFFIS, Copernicus EMS | **In use**: outlines of the seven largest fires (2017–2026); building damage of the 2026 Saumos fire |
 | Fire weather | Météo-France IFM (Indice Forêt Météo, the French FWI) | Daily danger, seasonal climatology |
 | Forest cover & species | IGN BD Forêt v2 | Fuel type (maritime pine monoculture vs. mixed/broadleaf) |
 | Tree cover density | Copernicus Land Monitoring Service | Fuel load proxy |

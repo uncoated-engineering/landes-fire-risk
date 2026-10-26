@@ -27,8 +27,11 @@ Pipeline
 5. Hazard: the yearly chance that a hectare of forest in each zone burns, from
    BDIFF, in three cases: all years 2006-2025, without 2022, and with the 2026
    press figures added as a stress case. Burned area is placed as on the fire
-   map; the forest area per zone comes from OSM.
-6. Cost of a claim from published insurance totals.
+   map (the largest fires by their EFFIS outline); the forest area per zone
+   comes from OSM.
+6. Cost of a claim from published insurance totals, and per house near the
+   area burned in 2022 and 2026 (EFFIS outlines), with the buildings Copernicus
+   EMS graded as damaged by the 2026 Saumos fire.
 
 The massif, zones and hexagons come from build_forest_history.py, as for the
 other maps.
@@ -65,6 +68,7 @@ OSM_SHA256 = "ddd4ee61d75074f74eb75075d2bc48d5fc2150fd2f29d3f99dfb9ace277ccba2"
 INSEE = ROOT / "data" / "raw" / "insee" / "base-cc-logement-2021_csv.zip"
 INSEE_URL = "https://www.insee.fr/fr/statistiques/fichier/8202349/base-cc-logement-2021_csv.zip"
 CLAIMS = ROOT / "data" / "reference" / "claims_costs.csv"
+EMS_BUILDINGS = ROOT / "data" / "reference" / "emsr899_buildings.geojson"
 CACHE = ROOT / "data" / "processed" / "osm"
 OUT_DIR = ROOT / "docs" / "exposure"
 OUT = OUT_DIR / "data.json"
@@ -321,19 +325,24 @@ def weight_homes(df: pd.DataFrame, mc) -> tuple[pd.Series, dict]:
     return pd.Series(w, index=df.index), info
 
 
-def hazard(m, mc, comm_hexes, forest_ha: np.ndarray) -> dict:
+def hazard(m, mc, comm_hexes, outlines, forest_ha: np.ndarray) -> dict:
     """Yearly chance that a hectare of forest burns, per zone, in three cases."""
     df = fhist.load_bdiff()
     fires = df[df["Code INSEE"].isin(set(mc.code))]
     nz = len(m.zone_ids)
     hz = np.array([m.zone_ids.index(m.zone_of[h]) for h in m.hexes.index])
     wz = {c: np.bincount(hz[h], minlength=nz) / len(h) for c, h in comm_hexes.items()}
+    wo = [np.bincount(hz, weights=s, minlength=nz) for s in outlines.hexShare]  # by outline, for the largest fires
+
+    def weights(code, key):
+        k = fhist.outline_index(outlines, code, key)
+        return wo[k] if k >= 0 else wz[code]
     y0, y1 = int(fires["Année"].min()), int(fires["Année"].max())
     burned = {y: np.zeros(nz) for y in range(y0, y1 + 2)}
-    for code, year, ha in zip(fires["Code INSEE"], fires["Année"], fires.ha):
-        burned[int(year)] += ha * wz[code]
+    for code, date, year, ha in zip(fires["Code INSEE"], fires.date, fires["Année"], fires.ha):
+        burned[int(year)] += ha * weights(code, date.strftime("%Y-%m-%d"))
     for _, code, ha, _ in fhist.PRESS_2026:
-        burned[y1 + 1] += ha * wz[code]
+        burned[y1 + 1] += ha * weights(code, str(y1 + 1))
     cases = [("all", f"{y0}–{y1}", [y for y in range(y0, y1 + 1)]),
              ("no2022", f"{y0}–{y1} without 2022", [y for y in range(y0, y1 + 1) if y != 2022]),
              ("with2026", f"{y0}–{y1 + 1}, 2026 from press figures", [y for y in range(y0, y1 + 2)])]
@@ -356,6 +365,37 @@ def claims() -> list[dict]:
         print(f"claims {r['year']} {r['scope']}: {r['claims']:,} claims, EUR {r['cost_eur'] / 1e6:,.0f}M, "
               f"EUR {r['per_claim']:,} per claim")
     return rows
+
+
+def near_fires(df: pd.DataFrame, w: pd.Series, outlines, tiles: np.ndarray, rows: list[dict]) -> dict:
+    """Houses near the area burned in 2022 and 2026, and what the fires cost per house near them;
+    buildings Copernicus EMS graded after the 2026 Saumos fire, by distance to the forest."""
+    pts = shapely.points(df.x.values, df.y.values)
+    paid = {2022: next(r for r in rows if r["year"] == 2022),
+            2026: next(r for r in rows if r["year"] == 2026 and "Var" not in r["scope"])}
+    out = {}
+    for year, r in paid.items():
+        burned = shapely.union_all(outlines.geometry.values[outlines.year.values == year])
+        shapely.prepare(burned)
+        near = {k: shapely.dwithin(burned, pts, d) if d else shapely.contains(burned, pts) for k, d in
+                (("in", 0), ("d200", 200), ("d1000", 1000))}
+        out[str(year)] = dict(burnedHa=round(shapely.area(burned) / 1e4), **{k: round(float(w[v].sum())) for k, v in near.items()},
+                              claims=r["claims"], cost=r["cost_eur"], scope=r["scope"])
+        print(f"near fires {year}: {out[str(year)]}")
+    ems = gpd.read_file(EMS_BUILDINGS).to_crs(2154)
+    (bi, _), d = shapely.STRtree(tiles).query_nearest(ems.geometry.values, max_distance=MAX_D, return_distance=True,
+                                                         all_matches=False)
+    dist = np.full(len(ems), np.inf)
+    dist[bi] = d
+    saumos = outlines.geometry.values[(outlines.year.values == 2026) & (outlines.name.values == "Saumos")][0]
+    near = shapely.dwithin(saumos, pts, 200) & (df.wall != "no").values  # solid buildings near the graded fire
+    grades = {}
+    for g in ("Destroyed", "Damaged", "Possibly damaged"):
+        k = (ems.damage == g).values
+        grades[g] = dict(n=int(k.sum()), d50=round(float(np.mean(dist[k] <= 50)), 3), d200=round(float(np.mean(dist[k] <= 200)), 3))
+    out["ems"] = dict(grades=grades, base50=round(float(np.mean(df.d.values[near] <= 50)), 3))
+    print(f"EMS graded buildings: {grades}; solid buildings within 200 m of the Saumos fire: {out['ems']['base50']:.0%} within 50 m of forest")
+    return out
 
 
 def roads_in_massif(m, roads: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -421,8 +461,10 @@ def main():
     hist = by(band, len(edges) + 1, w)
     print("homes by distance band:", hist.round(0).tolist())
 
-    hz = hazard(m, mc, comm_hexes, zone["forest"])
+    outlines = fhist.fire_outlines(m)
+    hz = hazard(m, mc, comm_hexes, outlines, zone["forest"])
     cl = claims()
+    calib = near_fires(df, w, outlines, tiles, cl)
 
     # page data
     bm = fh.base_map(m)
@@ -432,10 +474,19 @@ def main():
     cstat = pd.DataFrame({"homes": w, "h200": w * near200, "h50": w * near50}).groupby(df.code.values).sum()
     communes = [[r.nom, sx(centre[k].x), sy(centre[k].y), *[round(float(cstat.at[r.code, c])) if r.code in cstat.index else 0
                                                            for c in ("homes", "h200", "h50")]] for k, r in mc.iterrows()]
-    big = bdiff[bdiff["Code INSEE"].isin(code_idx)].groupby(["Code INSEE", "Année"]).ha.sum().reset_index()
-    big = big[big.ha >= 1000].sort_values("ha", ascending=False)
-    fires = [[code_idx[c], int(y), round(ha), 0] for c, y, ha in big.itertuples(index=False)]
-    fires += [[code_idx[code], 2026, ha, 1] for _, code, ha, _ in fhist.PRESS_2026]
+    # the largest fires, drawn by their outline and labelled with their official area (BDIFF, or press for 2026)
+    ha_of = np.zeros(len(outlines))
+    for code, date, ha in zip(bdiff["Code INSEE"], bdiff.date, bdiff.ha):
+        k = fhist.outline_index(outlines, code, date.strftime("%Y-%m-%d"))
+        if k >= 0:
+            ha_of[k] += ha
+    for _, code, ha, _ in fhist.PRESS_2026:
+        ha_of[fhist.outline_index(outlines, code, "2026")] += ha
+    fires = []
+    for k, r in outlines.iterrows():
+        x0, y0, x1, y1 = r.geometry.bounds
+        fires.append([r["name"], int(r.year), round(ha_of[k]), int(r.year == 2026), bm.path(r.geometry, 120),
+                      [sx(x0), sy(y1), sx(x1), sy(y0)]])
     main_roads = shapely.line_merge(shapely.union_all(roads.geometry.values[roads.highway.isin(MAIN_ROADS).values]))
     zones = [{**zp, **{k: round(float(zone[k][z])) for k in zone}} for z, zp in enumerate(b["zones"])]
     data = dict(
@@ -446,13 +497,15 @@ def main():
                       h50=hexstat["h50"].round().astype(int).tolist(),
                       forestPct=np.clip(100 * forest_hex / cell_ha, 0, 100).round().astype(int).tolist()),
         hexComm=[code_idx[hex_code[h]] for h in m.hexes.index],
-        communes=communes, hist=hist.round().astype(int).tolist(), hazard=hz, claims=cl, fires=fires,
+        communes=communes, hist=hist.round().astype(int).tolist(), hazard=hz, claims=cl, fires=fires, calib=calib,
         sources=["https://download.geofabrik.de/europe/france/aquitaine.html",
                  "https://www.insee.fr/fr/statistiques/8202349",
                  "https://bdiff.agriculture.gouv.fr/",
                  "https://www.franceassureurs.fr/press-en/press-releases/wildfires-gironde-landes-var-25000claims-losses-estimated-nearly-500million/",
                  cl[0]["source"],
                  fhist.PRESS_SOURCE,
+                 fhist.EFFIS_SOURCE,
+                 "https://rapidmapping.emergency.copernicus.eu/EMSR899/",
                  "https://www.prefectures-regions.gouv.fr/nouvelle-aquitaine/content/download/95578/610660/file/Plaquette%20-%20Le%20d%C3%A9broussaillement.pdf",
                  "https://github.com/gregoiredavid/france-geojson"],
     )

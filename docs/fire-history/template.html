@@ -101,6 +101,8 @@ h3 { font: 600 .78rem/1.2 var(--f-label); letter-spacing: .12em; text-transform:
 .zb.on { stroke: var(--ink); stroke-width: 1.3; }
 .burn circle { fill: var(--ember); fill-opacity: .28; stroke: var(--ember); stroke-width: .45; pointer-events: none; }
 .burn circle.press { fill-opacity: .12; stroke-dasharray: 1.4 .9; stroke-width: .7; }
+.burn path { fill: var(--ember); fill-opacity: .28; stroke: var(--ember); stroke-width: .45; stroke-linejoin: round; pointer-events: none; }
+.burn path.press { fill-opacity: .12; stroke-dasharray: 1.4 .9; stroke-width: .7; }
 .burn text { font: 600 3.5px var(--f-label); fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.2px; stroke-linejoin: round; pointer-events: none; }
 .town circle { fill: var(--ink); stroke: var(--halo); stroke-width: .5; }
 .town text { font: 500 3.5px var(--f-body); fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.1px; stroke-linejoin: round; pointer-events: none; }
@@ -256,7 +258,7 @@ details.method a { color: var(--ember); }
         <details class="method">
           <summary>Data and method</summary>
           <p id="methodData"></p>
-          <p>BDIFF gives the commune where each fire started, not its exact position. Fire starts are spread evenly over the hexagons of that commune (1 hexagon = 1,500 ha). A fire's whole area is credited to the commune where it started, even when it spread into its neighbours: Landiras 2022 also burned Guillos, Hostens and nearby communes. Zone figures split each commune between zones by its share of hexagons.</p>
+          <p>BDIFF gives the commune where each fire started, not its exact position. Fire starts are spread evenly over the hexagons of that commune (1 hexagon = 1,500 ha). A fire's whole area is credited to the commune where it started, and zone figures split each commune between zones by its share of hexagons. The seven largest fires are the exception: they are drawn with the outline of the area they burned, mapped by satellite in the European Forest Fire Information System (EFFIS), and their area is split between zones by that outline.</p>
           <p>Fire causes are recorded for less than half of the fires. The zones and the massif outline are the same as on the forest map.</p>
           <ul id="sources"></ul>
         </details>
@@ -284,7 +286,10 @@ const DATA = /*DATA*/null;
   const hexZone = D.hexes.map(h => h[2]);
   const commZone = D.communes.map(c => { const w = new Array(D.zones.length).fill(0); c[3].forEach(h => w[hexZone[h]] += 1 / c[3].length); return w; });
   const zoneLand = D.zones.map((_, z) => hexZone.filter(v => v === z).length / NH);
-  const fires = D.fires.map(([c, y, md, ha, cause]) => ({ c, y, m: +md.slice(0, 2), d: +md.slice(3), ha, cause }));
+  const fires = D.fires.map(([c, y, md, ha, cause, o]) => ({ c, y, m: +md.slice(0, 2), d: +md.slice(3), ha, cause, o }));
+  // zone weights of a fire: by its outline when it has one, else by its commune's hexagons
+  const zw = f => f.o >= 0 ? D.outlines[f.o][4] : commZone[f.c];
+  const mainZone = f => { const w = zw(f); return w.indexOf(Math.max(...w)); };
 
   // ---------- Map
   const map = $('map'), W = D.meta.width, H = D.meta.height;
@@ -358,31 +363,43 @@ const DATA = /*DATA*/null;
     // burned area circles, true to scale (1 map unit = 1 km)
     burnG.innerHTML = '';
     if (mode === 'burn' || S.press.length) {
-      const byC = new Map();
-      S.list.forEach(f => { const e = byC.get(f.c) || { ha: 0, n: 0, top: null }; e.ha += f.ha; e.n++; if (!e.top || f.ha > e.top.ha) e.top = f; byC.set(f.c, e); });
-      const items = [...byC.entries()].map(([c, e]) => ({ c, ha: e.ha, top: e.top, press: false }));
-      S.press.forEach(([name, c, ha]) => items.push({ c, ha, press: true }));
+      const byC = new Map(), byO = new Map();
+      S.list.forEach(f => {
+        if (f.o >= 0) { const e = byO.get(f.o) || { ha: 0, press: false }; e.ha += f.ha; byO.set(f.o, e); return; }
+        const e = byC.get(f.c) || { ha: 0, n: 0, top: null }; e.ha += f.ha; e.n++; if (!e.top || f.ha > e.top.ha) e.top = f; byC.set(f.c, e);
+      });
+      const items = [...byC.entries()].map(([c, e]) => {
+        const [name, x, y] = D.communes[c], r = Math.sqrt(e.ha / 100 / Math.PI);
+        return { name, x, y, r, ha: e.ha, top: e.top, press: false, box: [x - r, y - r, x + r, y + r] };
+      });
+      S.press.forEach(([name, c, ha, , o]) => {
+        if (o >= 0) { byO.set(o, { ha, press: true }); return; }
+        const [, x, y] = D.communes[c], r = Math.sqrt(ha / 100 / Math.PI);
+        items.push({ name, x, y, r, ha, press: true, box: [x - r, y - r, x + r, y + r] });
+      });
       items.sort((a, b) => b.ha - a.ha);
-      items.forEach(it => {
-        const [, x, y] = D.communes[it.c];
-        const r = Math.max(.55, Math.sqrt(it.ha / 100 / Math.PI));
-        el('circle', { cx: x, cy: y, r, class: it.press ? 'press' : '' }, burnG);
+      items.forEach(it => el('circle', { cx: it.x, cy: it.y, r: Math.max(.55, it.r), class: it.press ? 'press' : '' }, burnG));
+      // the largest fires: their real outline
+      const shapes = [...byO.entries()].map(([o, e]) => {
+        const [name, y, d, box] = D.outlines[o];
+        el('path', { d, class: e.press ? 'press' : '' }, burnG);
+        return { name, ha: e.ha, year: y, box };
       });
       // labels for the big ones, placed where they do not collide
-      const big = items.filter(it => it.ha >= 1000).slice(0, 8);
-      const placed = big.map(it => { const [, x, y] = D.communes[it.c]; const r = Math.sqrt(it.ha / 100 / Math.PI); return { x0: x - r, x1: x + r, y0: y - r, y1: y + r }; });
+      const big = [...items.filter(it => it.ha >= 1000), ...shapes].sort((a, b) => b.ha - a.ha).slice(0, 8);
+      const placed = big.map(it => ({ x0: it.box[0], y0: it.box[1], x1: it.box[2], y1: it.box[3] }));
       const free = b => b.x0 >= 2 && b.x1 <= W - 2 && !placed.some(p => !(b.x1 < p.x0 || b.x0 > p.x1 || b.y1 < p.y0 || b.y0 > p.y1));
       const named = new Set();
       big.forEach(it => {
-        const [name, x, y] = D.communes[it.c];
-        const r = Math.sqrt(it.ha / 100 / Math.PI);
-        const txt = name + ' · ' + fmt(it.ha) + ' ha' + (S.label === 'All years' && it.top && it.top.ha / it.ha > .8 ? ' (' + it.top.y + ')' : '');
+        const [x0, y0, x1, y1] = it.box, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+        const year = it.year || (it.top && it.top.ha / it.ha > .8 ? it.top.y : null);
+        const txt = it.name + ' · ' + fmt(it.ha) + ' ha' + (S.label === 'All years' && year ? ' (' + year + ')' : '');
         const tw = txt.length * 1.72;
-        const cands = [[x + r + 1.2, y + 1.2, 'start'], [x - r - 1.2, y + 1.2, 'end'], [x, y - r - 1.4, 'middle'], [x, y + r + 4, 'middle'], [x + r + 1.2, y - r, 'start'], [x + r + 1.2, y + r + 3, 'start']];
+        const cands = [[x1 + 1.2, ym + 1.2, 'start'], [x0 - 1.2, ym + 1.2, 'end'], [xm, y0 - 1.4, 'middle'], [xm, y1 + 4, 'middle'], [x1 + 1.2, y0, 'start'], [x1 + 1.2, y1 + 3, 'start']];
         for (const [tx, ty, anc] of cands) {
-          const x0 = anc === 'start' ? tx : anc === 'end' ? tx - tw : tx - tw / 2;
-          const b = { x0, x1: x0 + tw, y0: ty - 3.2, y1: ty + .9 };
-          if (free(b)) { placed.push(b); const t = el('text', { x: tx, y: ty, 'text-anchor': anc }, burnG); t.textContent = txt; named.add(name); break; }
+          const bx = anc === 'start' ? tx : anc === 'end' ? tx - tw : tx - tw / 2;
+          const b = { x0: bx, x1: bx + tw, y0: ty - 3.2, y1: ty + .9 };
+          if (free(b)) { placed.push(b); const t = el('text', { x: tx, y: ty, 'text-anchor': anc }, burnG); t.textContent = txt; named.add(it.name); break; }
         }
       });
       townEls.forEach(t => t.g.style.display = named.has(t.n) ? 'none' : '');
@@ -392,14 +409,14 @@ const DATA = /*DATA*/null;
       $('legend').innerHTML = '<div class="ramp">' + RAMP_LBL.map((l, k) => `<span><i style="background:var(--r${k + 1})"></i>${l}</span>`).join('') +
         '</div><span class="cap">Fire starts per 10,000 ha per year' + (S.years > 1 ? ', ' + Y0 + '–' + Y1 : ', ' + S.label) + '. Grey: no fire recorded.</span>';
     } else {
-      $('legend').innerHTML = '<span class="cap">Circles are drawn to scale: each one has the area burned by fires that started in that commune' +
-        (S.press.length ? '. Dashed: 2026 press figures.' : '.') + ' Small fires show as dots.</span>';
+      $('legend').innerHTML = '<span class="cap">Circles are drawn to scale: each one has the area burned by fires that started in that commune. The largest fires show the outline of the area they burned' +
+        (S.press.length ? '. Dashed: 2026, areas from press figures.' : '.') + ' Small fires show as dots.</span>';
     }
   }
 
   function zoneTotals(list) {
     const n = new Array(D.zones.length).fill(0), ha = new Array(D.zones.length).fill(0);
-    list.forEach(f => commZone[f.c].forEach((w, z) => { n[z] += w; ha[z] += w * f.ha; }));
+    list.forEach(f => zw(f).forEach((w, z) => { n[z] += w; ha[z] += w * f.ha; }));
     return { n, ha };
   }
 
@@ -468,7 +485,7 @@ const DATA = /*DATA*/null;
     const { n, ha } = zoneTotals(list);
     const tot = ha.reduce((a, b) => a + b, 0) || 1;
     const rate = n[selZone] / S.years / (zoneLand[selZone] * D.meta.massifHa / 10000);
-    const inZone = list.filter(f => commZone[f.c][selZone] > .5).sort((a, b) => b.ha - a.ha);
+    const inZone = list.filter(f => mainZone(f) === selZone).sort((a, b) => b.ha - a.ha);
     const top = inZone[0];
     $('zoneDetail').hidden = false;
     $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span>${Math.round(zoneLand[selZone] * 100)}% of the massif · ${S.label === 'All years' ? Y0 + '–' + Y1 : S.label}: about ${fmt(n[selZone])} fires and ${fmt(ha[selZone])} ha burned (${pct(ha[selZone], tot)}% of the total).</span>` +
@@ -520,7 +537,7 @@ const DATA = /*DATA*/null;
     const tot = S.list.reduce((a, f) => a + f.ha, 0), topSum = sorted.slice(0, k).reduce((a, f) => a + f.ha, 0);
     $('bigTitle').textContent = 'Largest fires · ' + (S.years > 1 ? Y0 + '–' + Y1 : S.label);
     $('big').innerHTML = '<thead><tr><th>Date</th><th>Commune</th><th class="num">Area</th></tr></thead><tbody>' + sorted.slice(0, k).map(f => {
-      const zi = commZone[f.c].indexOf(Math.max(...commZone[f.c]));
+      const zi = mainZone(f);
       return `<tr><td>${f.d} ${MONTHS[f.m - 1]} ${f.y}</td><td>${D.communes[f.c][0]}<span class="sub">${D.zones[zi].name} · ${D.causes[f.cause]}</span></td><td class="num ha">${fmtHa(f.ha)}</td></tr>`;
     }).join('') + '</tbody>';
     $('bigNote').textContent = `These ${k} fires burned ${pct(topSum, tot)}% of the ${fmt(tot)} ha burned ${S.years > 1 ? 'in ' + Y0 + '–' + Y1 : 'in ' + S.label}, out of ${fmt(S.list.length)} fires. ${pct(S.list.filter(f => f.ha < 1).length, S.list.length)}% of all fires stayed under 1 ha.`;
