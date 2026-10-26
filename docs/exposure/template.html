@@ -1,0 +1,496 @@
+<title>Landes Homes Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: third plate of the atlas, after the forest and fire maps. Phone: map, then cards. Desktop: sticky map left, reading column right. */
+:root {
+  --bg: #f7f2f4;
+  --surface: #fdfafb;
+  --ink: #1e161a;
+  --muted: #6b5f66;
+  --line: #e0d8dc;
+  --sea: #d8e3e9;
+  --land: #e9e5e7;
+  --hex0: #e4dee1;
+  --accent: #8b376b;
+  --ember: #c9521f;
+  --far: #d3c8ce;
+  --r1: #dfa2c4; --r2: #ce7dac; --r3: #b75c92; --r4: #963e75; --r5: #722756;
+  --halo: #fdfafb;
+  --f-display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-label: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #130f11; --surface: #1a1618; --ink: #ece6e9; --muted: #aca1a7; --line: #322b2f;
+    --sea: #111c22; --land: #211d1f; --hex0: #2a2527; --accent: #e394c1; --ember: #f0874b; --far: #4a4146;
+    --r1: #7c4666; --r2: #a35a85; --r3: #c673a3; --r4: #e293bf; --r5: #f7b8db; --halo: #1a1618; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #130f11; --surface: #1a1618; --ink: #ece6e9; --muted: #aca1a7; --line: #322b2f;
+  --sea: #111c22; --land: #211d1f; --hex0: #2a2527; --accent: #e394c1; --ember: #f0874b; --far: #4a4146;
+  --r1: #7c4666; --r2: #a35a85; --r3: #c673a3; --r4: #e293bf; --r5: #f7b8db; --halo: #1a1618; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--f-body); margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+
+header.intro { display: grid; gap: 6px; margin-bottom: 14px; }
+.kicker { font: 600 .74rem/1.2 var(--f-label); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0; }
+h1 { font: 400 clamp(1.75rem, 5.5vw, 2.6rem)/1.08 var(--f-display); margin: 0; text-wrap: balance; }
+.dek { margin: 0; color: var(--muted); max-width: 62ch; }
+.headline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 10px 0 18px; }
+@media (min-width: 760px) { .headline { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.hl { border-top: 2px solid var(--accent); padding-top: 6px; min-width: 0; }
+.hl .v { font: 400 clamp(1.4rem, 4.2vw, 1.8rem)/1.1 var(--f-display); }
+.hl .k { font-size: .88rem; color: var(--muted); }
+
+/* Grid */
+.grid { display: grid; gap: 16px; }
+@media (min-width: 960px) {
+  .grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+  .map-col { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
+.right-col { display: grid; gap: 16px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+.map-card { padding: 8px; display: grid; gap: 6px; }
+h3 { font: 600 .78rem/1.2 var(--f-label); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.note { font-size: .82rem; color: var(--muted); margin: 8px 0 0; }
+.note b { color: var(--ink); font-weight: 600; }
+
+/* View toggle */
+.controls { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.seg { flex: 1 1 260px; display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button, .chip { font: 600 .9rem/1.2 var(--f-label); border: 0; border-radius: 7px; padding: 8px 6px; background: none; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.chip { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 8px 12px; display: inline-flex; align-items: center; gap: 7px; }
+.chip i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px dashed var(--ember); display: inline-block; }
+.chip[aria-pressed=true] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.chip[aria-pressed=true] i { background: color-mix(in srgb, var(--ember) 22%, transparent); }
+button:focus-visible, .zone-row:focus-visible, .hrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Map */
+.map-frame { background: var(--sea); border-radius: 10px; overflow: hidden; }
+#map { display: block; width: 100%; height: auto; max-height: 76vh; }
+.sea { fill: var(--sea); }
+.ctx { fill: var(--land); }
+.dept { fill: none; stroke: var(--muted); stroke-width: .35; stroke-dasharray: 1.6 1.2; opacity: .6; }
+.hx { stroke: var(--surface); stroke-width: .28; fill: var(--hex0); transition: fill .35s ease, opacity .3s ease; cursor: pointer; }
+.c0 { fill: var(--hex0); } .c1 { fill: var(--r1); } .c2 { fill: var(--r2); } .c3 { fill: var(--r3); } .c4 { fill: var(--r4); } .c5 { fill: var(--r5); }
+.dim .hx:not(.sel) { opacity: .3; }
+.hx.pick { stroke: var(--ink); stroke-width: .9; }
+.roads { fill: none; stroke: var(--ink); stroke-width: .3; opacity: .35; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+.zb { fill: none; stroke: var(--surface); stroke-width: .9; pointer-events: none; }
+.zb.on { stroke: var(--ink); stroke-width: 1.3; }
+.burn circle { fill: var(--ember); fill-opacity: .12; stroke: var(--ember); stroke-width: .5; pointer-events: none; }
+.burn circle.press { stroke-dasharray: 1.4 .9; stroke-width: .7; }
+.burn text { font: 600 3.4px var(--f-label); fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.2px; stroke-linejoin: round; pointer-events: none; }
+.town circle { fill: var(--ink); stroke: var(--halo); stroke-width: .5; }
+.town text { font: 500 3.5px var(--f-body); fill: var(--ink); paint-order: stroke; stroke: var(--halo); stroke-width: 1.1px; stroke-linejoin: round; pointer-events: none; }
+.lbl { font: 600 3.6px var(--f-label); letter-spacing: .25em; fill: var(--muted); opacity: .8; }
+.lbl.water { font: italic 400 4.2px var(--f-display); letter-spacing: .06em; fill: var(--muted); }
+.scale line { stroke: var(--ink); stroke-width: .6; }
+.scale text { font: 500 3.2px var(--f-label); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 2px 6px; font-size: .85rem; color: var(--muted); }
+.legend .ramp { display: flex; gap: 2px; }
+.legend .ramp span { display: grid; justify-items: center; gap: 2px; font: 500 .74rem/1 var(--f-label); font-variant-numeric: tabular-nums; }
+.legend .ramp i { width: 32px; height: 12px; border-radius: 2px; }
+.legend .cap { flex-basis: 100%; font-size: .8rem; }
+.info { min-height: 2.6em; font-size: .9rem; padding: 2px 6px 4px; color: var(--ink); }
+.info b { font-weight: 600; }
+
+/* Zones */
+.zkey { display: flex; gap: 14px; font-size: .8rem; color: var(--muted); margin: 0 0 6px; flex-wrap: wrap; }
+.zkey i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.zone-row { display: grid; grid-template-columns: minmax(0, 7.6rem) minmax(0, 1fr) 4.2rem; gap: 10px; align-items: center; padding: 7px 6px; border-radius: 8px; cursor: pointer; border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; }
+.zone-row:hover { background: var(--bg); }
+.zone-row.on { background: var(--bg); box-shadow: inset 3px 0 0 var(--accent); }
+.zr-name { font: 600 .9rem/1.2 var(--f-label); min-width: 0; }
+.zr-name small { display: block; font: 500 .76rem/1.2 var(--f-label); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stack { display: flex; gap: 2px; height: 12px; min-width: 0; }
+.stack i { display: block; height: 100%; }
+.stack i:first-child { border-radius: 2px 0 0 2px; }
+.stack i:last-child { border-radius: 0 4px 4px 0; }
+.b50 { background: var(--r5); } .b200 { background: var(--r3); } .bfar { background: var(--far); }
+.share { font: 600 .85rem/1 var(--f-label); text-align: right; font-variant-numeric: tabular-nums; padding: 5px 6px; border-radius: 999px; }
+.share.hi { background: var(--accent); color: var(--surface); }
+.zone-detail { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); font-size: .92rem; display: grid; gap: 4px; }
+.zone-detail strong { font: 400 1.1rem/1.2 var(--f-display); }
+.zone-detail .sub { color: var(--muted); font-size: .86rem; }
+.zone-detail button { justify-self: start; font: 600 .8rem var(--f-label); background: none; border: 0; color: var(--accent); padding: 2px 0; cursor: pointer; text-decoration: underline; }
+
+/* Charts */
+.chart svg { display: block; width: 100%; height: auto; }
+.ax { font: 500 11px var(--f-label); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.ax.strong { fill: var(--ink); font-weight: 600; }
+.gl { stroke: var(--line); stroke-width: 1; }
+.val { font: 600 11px var(--f-label); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.brace { stroke: var(--muted); stroke-width: 1; fill: none; }
+.col { cursor: default; }
+.hrow { cursor: pointer; }
+.hrow .hit { fill: transparent; }
+.hrow:hover .hit, .hrow.on .hit { fill: var(--bg); }
+.rng { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; opacity: .55; }
+.mk-all { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
+.mk-no { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.mk-26 { fill: var(--ember); stroke: var(--surface); stroke-width: 2; }
+.hkey { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); margin: 0 0 4px; }
+.hkey span { display: inline-flex; align-items: center; gap: 6px; }
+.hkey svg { width: 16px; height: 16px; }
+
+/* Tables */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; font-variant-numeric: tabular-nums; }
+th { font: 600 .74rem/1.2 var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 8px 6px 0; border-bottom: 1px solid var(--line); }
+td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+td.em { font-weight: 600; }
+td .sub { display: block; font-size: .8rem; color: var(--muted); }
+details.more { margin-top: 10px; font-size: .88rem; }
+details.more summary { cursor: pointer; font: 600 .9rem var(--f-label); color: var(--accent); }
+details.more table { margin-top: 8px; }
+
+details.method { font-size: .9rem; color: var(--muted); }
+details.method summary { cursor: pointer; font: 600 .95rem var(--f-label); color: var(--ink); }
+details.method p, details.method ul { margin: 8px 0 0; max-width: 64ch; }
+details.method ul { padding-left: 18px; display: grid; gap: 4px; }
+details.method a { color: var(--accent); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .hx { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <p class="kicker">Landes de Gascogne · houses and forest, October 2026</p>
+    <h1>Homes at the forest edge</h1>
+    <p class="dek">Every building in the massif's 277 communes, from OpenStreetMap, measured against the forest. Owners must clear 50 m around any building within 200 m of woods or moorland, and this map counts the houses inside that band.</p>
+  </header>
+  <div class="headline" id="headline"></div>
+
+  <div class="grid">
+    <div class="map-col">
+      <div class="card map-card">
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Distance to the forest">
+            <button type="button" id="m200" aria-pressed="true">Within 200 m</button>
+            <button type="button" id="m50" aria-pressed="false">Within 50 m</button>
+          </div>
+          <button type="button" class="chip" id="fireBtn" aria-pressed="true"><i></i>Large fires</button>
+        </div>
+        <div class="map-frame"><svg id="map" role="img" aria-label="Hexagon map of the Landes de Gascogne massif showing how many houses stand near the forest"></svg></div>
+        <div class="legend" id="legend"></div>
+        <div class="info" id="info" aria-live="polite">Tap a hexagon to see its houses.</div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <section class="card">
+        <h3>Houses by distance to the forest, per zone</h3>
+        <div class="zkey"><span><i class="b50"></i>Within 50 m</span><span><i class="b200"></i>50 to 200 m</span><span><i class="bfar"></i>Further</span></div>
+        <div id="zones"></div>
+        <div class="zone-detail" id="zoneDetail" hidden></div>
+        <p class="note">Bars are drawn to the same scale: their length is the number of houses. The chip gives the share within 200 m.</p>
+      </section>
+
+      <section class="card chart">
+        <h3>How far houses stand from the forest</h3>
+        <svg id="hist" viewBox="0 0 440 210" role="img" aria-label="Column chart of houses by distance to the nearest forest"></svg>
+        <p class="note" id="histNote"></p>
+      </section>
+
+      <section class="card chart">
+        <h3>How often a hectare of forest burns</h3>
+        <div class="hkey" id="hkey"></div>
+        <svg id="haz" role="img" aria-label="Yearly chance that a hectare of forest burns, per zone, in three cases"></svg>
+        <p class="note" id="hazNote"></p>
+        <details class="more">
+          <summary>Show the numbers</summary>
+          <div class="tbl-wrap"><table id="hazTable"></table></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h3>What an insurance claim costs</h3>
+        <div class="tbl-wrap"><table id="claims"></table></div>
+        <p class="note" id="claimNote"></p>
+      </section>
+
+      <section class="card">
+        <details class="method">
+          <summary>Data and method</summary>
+          <p id="mBuild"></p>
+          <p id="mHomes"></p>
+          <p id="mForest"></p>
+          <p id="mHazard"></p>
+          <p>Insurance figures are France Assureurs estimates, quoted by the press; the 2026 figures are ceilings that may still move. The zones, hexagons and massif outline are the same as on the forest and fire maps.</p>
+          <ul id="sources"></ul>
+        </details>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+(function () {
+  const D = DATA, NS = 'http://www.w3.org/2000/svg';
+  const R = D.meta.hexR, NH = D.hexes.length, HEXHA = D.meta.hexHa;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('en-US');
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const roundTo = digits => n => { const k = Math.pow(10, Math.max(0, Math.floor(Math.log10(n)) - digits + 1)); return Math.round(n / k) * k; };
+  const round2 = roundTo(2), round3 = roundTo(3);
+  const est = n => fmt(n >= 1000 ? round3(n) : n);  // weighted house counts: three significant figures
+  const pctY = p => { const v = p * 100; return (v >= 1 ? v.toFixed(1) : v >= .1 ? v.toFixed(2) : v.toFixed(3)) + '%'; };
+  const oneIn = p => p > 0 ? '1 in ' + fmt(round2(1 / p)) + ' years' : 'none recorded';
+  const euro = n => n >= 1e6 ? '€' + fmt(n / 1e6) + 'M' : '€' + fmt(n);
+  const Z = D.zones, HS = D.hexStats;
+  const hexZone = D.hexes.map(h => h[2]);
+  const T = { homes: 0, h200: 0, h50: 0 };
+  Z.forEach(z => { T.homes += z.homes; T.h200 += z.h200; T.h50 += z.h50; });
+  const CASES = D.hazard.cases, [Y0, Y1] = D.hazard.years;
+  const caseName = { all: Y0 + '–' + Y1, no2022: 'Without 2022', with2026: 'With 2026' };
+
+  // ---------- Map
+  const map = $('map'), W = D.meta.width, H = D.meta.height;
+  map.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || map).appendChild(e); return e; };
+  el('rect', { class: 'sea', x: 0, y: 0, width: W, height: H });
+  el('path', { class: 'ctx', d: D.land });
+  el('path', { class: 'dept', d: D.depts });
+  D.labels.forEach(([t, x, y, rot]) => {
+    const tx = el('text', { class: 'lbl' + (/Ocean/.test(t) ? ' water' : ''), x, y, 'text-anchor': t === 'LOT-ET-GARONNE' ? 'end' : 'middle', transform: rot ? `rotate(${rot} ${x} ${y})` : '' });
+    tx.textContent = t;
+  });
+  const hexG = el('g', {});
+  const corners = [0, 1, 2, 3, 4, 5].map(k => [R * Math.cos(Math.PI / 180 * (60 * k + 30)), R * Math.sin(Math.PI / 180 * (60 * k + 30))]);
+  const hexEls = D.hexes.map(([x, y], i) => {
+    const p = el('path', { class: 'hx c0', d: 'M' + corners.map(([cx, cy]) => (x + cx).toFixed(2) + ',' + (y + cy).toFixed(2)).join('L') + 'Z' }, hexG);
+    p.dataset.i = i; return p;
+  });
+  el('path', { class: 'roads', d: D.roads });
+  const zoneG = el('g', {});
+  const zoneEls = Z.map(z => el('path', { class: 'zb', d: z.path }, zoneG));
+  const burnG = el('g', { class: 'burn' });
+  const townG = el('g', {});
+  const townEls = D.towns.map(([n, x, y]) => {
+    const g = el('g', { class: 'town' }, townG);
+    el('circle', { cx: x, cy: y, r: .9 }, g);
+    const left = x > W * .62;
+    const t = el('text', { x: left ? x - 1.8 : x + 1.8, y: y + 1.2, 'text-anchor': left ? 'end' : 'start' }, g); t.textContent = n;
+    return { n, g };
+  });
+  const sc = el('g', { class: 'scale' });
+  el('line', { x1: 8, y1: H - 8, x2: 58, y2: H - 8 }, sc);
+  el('line', { x1: 8, y1: H - 9.6, x2: 8, y2: H - 6.4 }, sc); el('line', { x1: 58, y1: H - 9.6, x2: 58, y2: H - 6.4 }, sc);
+  const st = el('text', { x: 33, y: H - 10.5, 'text-anchor': 'middle' }, sc); st.textContent = '50 km';
+
+  // large fires: circles to scale (1 map unit = 1 km) at the commune where each fire started
+  (function () {
+    const items = D.fires.map(([c, y, ha, press]) => ({ c, y, ha, press, r: Math.sqrt(ha / 100 / Math.PI) }));
+    items.forEach(it => { const [, x, y] = D.communes[it.c]; el('circle', { cx: x, cy: y, r: it.r, class: it.press ? 'press' : '' }, burnG); });
+    const placed = items.map(it => { const [, x, y] = D.communes[it.c]; return { x0: x - .5, x1: x + .5, y0: y - .5, y1: y + .5 }; });
+    D.towns.forEach(([n, x, y]) => { const left = x > W * .62, tw = n.length * 1.75; placed.push({ x0: left ? x - 1.8 - tw : x - 1, x1: left ? x + 1 : x + 1.8 + tw, y0: y - 2.2, y1: y + 1.6 }); });
+    const free = b => b.x0 >= 2 && b.x1 <= W - 2 && b.y0 >= 2 && !placed.some(p => !(b.x1 < p.x0 || b.x0 > p.x1 || b.y1 < p.y0 || b.y0 > p.y1));
+    items.slice().sort((a, b) => b.ha - a.ha).forEach(it => {
+      const [name, x, y] = D.communes[it.c];
+      const txt = name + ' ' + it.y + ' · ' + fmt(it.ha) + ' ha';
+      const tw = txt.length * 1.66, r = it.r;
+      const cands = [[x + r + 1.2, y + 1.2, 'start'], [x - r - 1.2, y + 1.2, 'end'], [x, y - r - 1.4, 'middle'], [x, y + r + 4, 'middle'], [x + r * .7 + 1, y - r * .7 - 1, 'start'], [x - r * .7 - 1, y + r * .7 + 3.5, 'end']];
+      for (const [tx, ty, anc] of cands) {
+        const x0 = anc === 'start' ? tx : anc === 'end' ? tx - tw : tx - tw / 2;
+        const b = { x0, x1: x0 + tw, y0: ty - 3.1, y1: ty + .9 };
+        if (free(b)) { placed.push(b); const t = el('text', { x: tx, y: ty, 'text-anchor': anc }, burnG); t.textContent = txt; break; }
+      }
+    });
+  })();
+
+  // ---------- State
+  let band = 200, selZone = null, selHex = null, fires = true;
+  const BREAKS = [25, 100, 250, 500];  // houses per hexagon
+  const RAMP_LBL = ['1–25', '25–100', '100–250', '250–500', '500 +'];
+
+  function renderMap() {
+    const v = band === 200 ? HS.h200 : HS.h50;
+    hexEls.forEach((p, i) => {
+      const n = v[i];
+      const cls = n >= 1 ? 'c' + (1 + BREAKS.filter(b => n >= b).length) : 'c0';
+      p.setAttribute('class', 'hx ' + cls + (selZone !== null && hexZone[i] === selZone ? ' sel' : '') + (i === selHex ? ' pick' : ''));
+    });
+    burnG.style.display = fires ? '' : 'none';
+    $('legend').innerHTML = '<div class="ramp">' + RAMP_LBL.map((l, k) => `<span><i style="background:var(--r${k + 1})"></i>${l}</span>`).join('') +
+      `</div><span class="cap">Houses per hexagon (${fmt(HEXHA)} ha) within ${band} m of the forest. Grey: none.` +
+      (fires ? ' Orange circles: fires over 1,000 ha since 2006, drawn to scale where they started; dashed: 2026, from press reports.' : '') + '</span>';
+    if (selHex !== null) showHex(selHex);
+  }
+
+  function showHex(i) {
+    const c = D.communes[D.hexComm[i]];
+    const [name, , , ch, c200, c50] = c;
+    const n = HS.homes[i];
+    $('info').innerHTML = n >= 1
+      ? `<b>Around ${name}</b>: ${est(n)} houses in this hexagon, ${est(HS.h200[i])} within 200 m of the forest and ${est(HS.h50[i])} within 50 m. Forest covers ${HS.forestPct[i]}% of it. ` +
+        `The commune has ${est(ch)} houses, ${pct(c200, ch)}% within 200 m.`
+      : `<b>Around ${name}</b>: no houses in this hexagon. Forest covers ${HS.forestPct[i]}% of it.`;
+  }
+  hexG.addEventListener('click', e => {
+    const i = e.target.dataset && e.target.dataset.i; if (i === undefined) return;
+    selHex = +i;
+    if (selZone !== hexZone[selHex]) selectZone(hexZone[selHex]); else renderMap();
+  });
+
+  // ---------- Zones
+  const zMax = Math.max(...Z.map(z => z.homes));
+  $('zones').innerHTML = Z.map((z, i) => {
+    const w = v => (v / zMax * 100).toFixed(2) + '%';
+    const s = pct(z.h200, z.homes);
+    return `<button class="zone-row" type="button" data-i="${i}"><span class="zr-name">${z.name}<small>${est(z.homes)} houses</small></span>` +
+      `<span class="stack"><i class="b50" style="width:${w(z.h50)}"></i><i class="b200" style="width:${w(z.h200 - z.h50)}"></i><i class="bfar" style="width:${w(z.homes - z.h200)}"></i></span>` +
+      `<span class="share${s >= 75 ? ' hi' : ''}">${s}%</span></button>`;
+  }).join('');
+  function zoneDetail() {
+    const z = Z[selZone];
+    const p = CASES.map(c => c.p[selZone]);
+    $('zoneDetail').hidden = false;
+    $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span class="sub">${z.blurb}</span>` +
+      `<span>${est(z.homes)} houses: ${est(z.h200)} within 200 m of the forest (${pct(z.h200, z.homes)}%), ${est(z.h50)} within 50 m (${pct(z.h50, z.homes)}%).</span>` +
+      `<span>${est(z.forest)} ha of forest, ${pct(z.forest, z.ha)}% of the zone, crossed by ${est(z.trackKm)} km of forest tracks.</span>` +
+      `<span>Yearly chance a hectare of forest burns: ${pctY(p[0])} in ${caseName.all} (${oneIn(p[0])}), ${pctY(p[1])} without 2022, ${pctY(p[2])} with 2026.</span>` +
+      `<button type="button" id="clearZone">Show all zones</button>`;
+    $('clearZone').onclick = () => selectZone(selZone);
+  }
+  function selectZone(i) {
+    selZone = selZone === i ? null : i;
+    if (selZone === null || (selHex !== null && hexZone[selHex] !== selZone)) selHex = null;
+    map.classList.toggle('dim', selZone !== null);
+    zoneEls.forEach((p, k) => p.classList.toggle('on', k === selZone));
+    if (selZone !== null) zoneG.appendChild(zoneEls[selZone]);
+    document.querySelectorAll('.zone-row').forEach((r, k) => r.classList.toggle('on', k === selZone));
+    document.querySelectorAll('.hrow').forEach(r => r.classList.toggle('on', +r.dataset.z === selZone));
+    if (selZone !== null) zoneDetail(); else { $('zoneDetail').hidden = true; $('info').textContent = 'Tap a hexagon to see its houses.'; }
+    renderMap();
+  }
+  document.querySelectorAll('.zone-row').forEach(r => r.addEventListener('click', () => selectZone(+r.dataset.i)));
+
+  // ---------- Distance histogram
+  (function () {
+    const svg = $('hist'), CW = 440, CH = 210, m = { l: 8, r: 8, t: 56, b: 34 };
+    const labels = ['In the forest', '0–50 m', '50–100 m', '100–200 m', '200–500 m', '0.5–1 km', 'Over 1 km'];
+    const cls = ['b50', 'b50', 'b200', 'b200', 'bfar', 'bfar', 'bfar'];
+    const v = D.hist, top = Math.max(...v), n = v.length;
+    const slot = (CW - m.l - m.r) / n, bw = Math.min(28, slot * .6);
+    const y = val => CH - m.b - val / top * (CH - m.b - m.t);
+    const ce = (tag, attrs) => el(tag, attrs, svg);
+    ce('line', { class: 'gl', x1: m.l, x2: CW - m.r, y1: CH - m.b, y2: CH - m.b });
+    const xs = v.map((_, k) => m.l + slot * k + slot / 2);
+    v.forEach((val, k) => {
+      const x = xs[k] - bw / 2, h = Math.max(1, CH - m.b - y(val)), rr = Math.min(4, h / 2);
+      const d = `M${x},${CH - m.b}V${CH - m.b - h + rr}Q${x},${CH - m.b - h} ${x + rr},${CH - m.b - h}H${x + bw - rr}Q${x + bw},${CH - m.b - h} ${x + bw},${CH - m.b - h + rr}V${CH - m.b}Z`;
+      const p = ce('path', { d, class: 'col', style: `fill:var(--${cls[k] === 'b50' ? 'r5' : cls[k] === 'b200' ? 'r3' : 'far'})` });
+      const tt = el('title', {}, p); tt.textContent = labels[k] + ': ' + est(val) + ' houses';
+      const t = ce('text', { class: 'val', x: xs[k], y: CH - m.b - h - 5, 'text-anchor': 'middle' }); t.textContent = val >= 1000 ? (Math.round(val / 100) / 10) + 'k' : fmt(val);
+      const words = labels[k].split(' ');
+      const lt = ce('text', { class: 'ax', x: xs[k], y: CH - m.b + 14, 'text-anchor': 'middle' });
+      if (k === 0) { lt.textContent = 'In the'; const l2 = ce('text', { class: 'ax', x: xs[k], y: CH - m.b + 27, 'text-anchor': 'middle' }); l2.textContent = 'forest'; }
+      else lt.textContent = words.join(' ');
+    });
+    // braces over the 50 m and 200 m groups
+    const brace = (k0, k1, yy, txt) => {
+      const x0 = xs[k0] - bw / 2, x1 = xs[k1] + bw / 2;
+      ce('path', { class: 'brace', d: `M${x0},${yy + 5}V${yy}H${x1}V${yy + 5}` });
+      const t = ce('text', { class: 'ax strong', x: (x0 + x1) / 2, y: yy - 4, 'text-anchor': 'middle' }); t.textContent = txt;
+    };
+    const lab50 = v[0] + v[1], lab200 = v[0] + v[1] + v[2] + v[3];
+    brace(0, 1, 36, 'Within 50 m: ' + est(lab50));
+    brace(0, 3, 14, 'Within 200 m: ' + est(lab200) + ' (' + pct(lab200, T.homes) + '% of houses)');
+    $('histNote').textContent = `Distance from each house to the nearest mapped forest, woodland or moor. ${est(v[0])} houses stand inside a forest polygon, often in the clearings of the old farmsteads.`;
+  })();
+
+  // ---------- Hazard chart: three cases per zone on a log scale
+  (function () {
+    const rows = [{ name: 'Whole massif', p: CASES.map(c => c.pMassif), z: -1 }, ...Z.map((z, i) => ({ name: z.name, p: CASES.map(c => c.p[i]), z: i }))];
+    const CW = 440, RH = 24, top = 30, X0 = 128, X1 = CW - 30, CH = top + rows.length * RH + 34;
+    const svg = $('haz'); svg.setAttribute('viewBox', `0 0 ${CW} ${CH}`);
+    const L0 = Math.log10(0.01), L1 = Math.log10(3);
+    const x = p => X0 + (Math.log10(Math.max(p * 100, 0.01)) - L0) / (L1 - L0) * (X1 - X0);
+    const ce = (tag, attrs, parent) => el(tag, attrs, parent || svg);
+    [0.01, 0.03, 0.1, 0.3, 1, 3].forEach(v => {
+      const xx = x(v / 100);
+      ce('line', { class: 'gl', x1: xx, x2: xx, y1: top - 6, y2: top + rows.length * RH });
+      const t = ce('text', { class: 'ax', x: xx, y: top - 12, 'text-anchor': 'middle' }); t.textContent = v + '%';
+    });
+    [[0.01, '1 in 10,000 yrs'], [0.1, '1 in 1,000'], [1, '1 in 100']].forEach(([v, s]) => {
+      const t = ce('text', { class: 'ax', x: x(v / 100), y: top + rows.length * RH + 16, 'text-anchor': 'middle' }); t.textContent = s;
+    });
+    const t0 = ce('text', { class: 'ax', x: X0, y: top + rows.length * RH + 30 }); t0.textContent = 'Chance per year (log scale)';
+    const diamond = (cx, cy, r) => `M${cx},${cy - r}L${cx + r},${cy}L${cx},${cy + r}L${cx - r},${cy}Z`;
+    let maxRow = null;
+    rows.forEach((r, k) => {
+      const cy = top + k * RH + RH / 2;
+      const g = ce('g', { class: 'hrow', 'data-z': r.z });
+      el('rect', { class: 'hit', x: 0, y: cy - RH / 2, width: CW, height: RH, rx: 6 }, g);
+      const nm = el('text', { class: 'ax' + (r.z < 0 ? ' strong' : ''), x: X0 - 10, y: cy + 4, 'text-anchor': 'end' }, g); nm.textContent = r.name;
+      const xs = r.p.map(x);
+      el('line', { class: 'rng', x1: Math.min(...xs), x2: Math.max(...xs), y1: cy, y2: cy }, g);
+      // drawn largest first so that equal values still show: ring, then diamond, then dot
+      el('circle', { class: 'mk-no', cx: xs[1], cy, r: 6 }, g);
+      el('path', { class: 'mk-26', d: diamond(xs[2], cy, 7.2) }, g);
+      el('circle', { class: 'mk-all', cx: xs[0], cy, r: 4 }, g);
+      const tt = el('title', {}, g); tt.textContent = r.name + ': ' + CASES.map((c, j) => caseName[c.id] + ' ' + pctY(r.p[j])).join(' · ');
+      if (r.z >= 0) { g.setAttribute('tabindex', '0'); g.addEventListener('click', () => selectZone(r.z)); g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectZone(r.z); } }); }
+      if (!maxRow || Math.max(...r.p) > Math.max(...maxRow.p)) maxRow = { ...r, cy };
+      if (r.z < 0) { const v = el('text', { class: 'val', x: Math.max(...xs) + 9, y: cy + 4 }, g); v.textContent = pctY(r.p[0]) + ' a year'; }
+    });
+    const mx = Math.max(...maxRow.p), v = ce('text', { class: 'val', x: x(mx) - 9, y: maxRow.cy - 7, 'text-anchor': 'end' }); v.textContent = pctY(mx);
+    const key = [['mk-all', 'c', caseName.all], ['mk-no', 'c', 'Without 2022'], ['mk-26', 'd', 'With 2026, a stress case']];
+    $('hkey').innerHTML = key.map(([c, s, l]) => `<span><svg viewBox="0 0 16 16">${s === 'c' ? `<circle class="${c}" cx="8" cy="8" r="${c === 'mk-no' ? 5.6 : 4.4}"/>` : `<path class="${c}" d="${diamond(8, 8, 7)}"/>`}</svg>${l}</span>`).join('');
+    const m = CASES.map(c => c.pMassif);
+    const bd = Z.findIndex(z => z.id === 'bordeaux'), md = Z.findIndex(z => z.id === 'medoc');
+    $('hazNote').innerHTML = `Area burned each year in the zone divided by its forest area. Across the massif ${pctY(m[0])} of the forest burned in an average year of ${Y0}–${Y1}, <b>${oneIn(m[0])}</b> for a given hectare. ` +
+      `Leave out 2022 and it falls to ${pctY(m[1])} (${oneIn(m[1])}); add the 2026 fires and it rises to ${pctY(m[2])}. Landiras alone puts ${Z[bd].name} at ${pctY(CASES[0].p[bd])}, and the Saumos fire puts the ${Z[md].name} at ${pctY(CASES[2].p[md])} in the stress case.`;
+    $('hazTable').innerHTML = '<thead><tr><th>Zone</th>' + CASES.map(c => `<th class="num">${caseName[c.id]}</th>`).join('') + '</tr></thead><tbody>' +
+      rows.map(r => `<tr><td${r.z < 0 ? ' class="em"' : ''}>${r.name}</td>` + r.p.map(p => `<td class="num">${pctY(p)}<span class="sub">${oneIn(p).replace(' years', ' yrs')}</span></td>`).join('') + '</tr>').join('') + '</tbody>';
+  })();
+
+  // ---------- Claims
+  (function () {
+    const rows = D.claims;
+    $('claims').innerHTML = '<thead><tr><th>Fires</th><th class="num">Claims</th><th class="num">Insured cost</th><th class="num">Per claim</th></tr></thead><tbody>' +
+      rows.map(r => `<tr><td>${r.year}<span class="sub">${r.scope}</span></td><td class="num">${fmt(r.claims)}</td><td class="num">${euro(r.cost_eur)}</td><td class="num em">${euro(r.per_claim)}</td></tr>`).join('') + '</tbody>';
+    const y26 = rows.find(r => r.year === 2026 && /Var/.test(r.scope) && !/August/.test(r.scope)), gl = rows.find(r => r.year === 2026 && !/Var/.test(r.scope)), y22 = rows.find(r => r.year === 2022);
+    $('claimNote').innerHTML = `For a first estimate, one claim from a house near the forest costs <b>about ${euro(round2(y26.per_claim))}</b>, the 2026 average, and up to ${euro(y22.per_claim)}, the 2022 average. ` +
+      `The 2026 average is pulled down by many small claims: about 30,000 people were rehoused at insurers' expense and 1,800 business-interruption claims had no damage, while about 400 homes in Gironde and Landes had claims above €150,000. ` +
+      `Gironde and Landes alone, without the Var, give ${euro(gl.per_claim)}. The 2022 figure covers every forest fire in France that summer, with fewer and larger claims.`;
+  })();
+
+  // ---------- Headline and method
+  (function () {
+    const m = CASES[0].pMassif, M = D.meta;
+    const y26 = D.claims.find(r => r.year === 2026 && /Var/.test(r.scope) && !/August/.test(r.scope));
+    const items = [[fmt(round3(T.h200)), `houses within 200 m of the forest, ${pct(T.h200, T.homes)}% of the massif's ${fmt(round3(T.homes))}`],
+      [fmt(round3(T.h50)), 'within 50 m, the strip owners must keep cleared'],
+      [pctY(m), `of the forest burns in an average year (${Y0}–${Y1}); ${pctY(CASES[1].pMassif)} without 2022`],
+      [euro(round2(y26.per_claim)), 'average insured claim after the 2026 fires']];
+    $('headline').innerHTML = items.map(([v, k]) => `<div class="hl"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+    $('mBuild').textContent = `Buildings come from the OpenStreetMap extract of ${M.osmDate} (Geofabrik). In France almost all of them were imported from the land registry, so the coverage is close to complete, with ${fmt(M.buildings)} buildings in the massif. For each one the distance runs from the edge of its footprint to the nearest forest, and is 0 when it stands inside a forest polygon.`;
+    $('mHomes').textContent = `Buildings are not homes. ${fmt(M.light)} are light structures (sheds, carports) and many others are garages, barns or farm buildings. There are ${fmt(M.likely)} likely homes (solid buildings of ${M.homeM2[0]} to ${fmt(M.homeM2[1])} m² not tagged as another use) against ${fmt(M.houses)} houses in the 2021 census (INSEE). The two agree closely in towns, but farming communes have up to ${M.maxRatio} times as many likely homes as houses, so each commune's likely homes are weighted to add up to its census house count. Flats (${fmt(M.flats)}, mostly in town centres) are left out.`;
+    $('mForest').textContent = `Forest means OpenStreetMap forest, woodland, heath and scrub, because the clearing duty covers land within 200 m of woods, forests, moors, plantations and reforested land. Owners there must clear 50 m around their buildings, or 100 m where the mayor or prefect decides. OpenStreetMap maps ${fmt(Z.reduce((a, z) => a + z.forest, 0))} ha of it in the massif, against ${fmt(987950)} ha in the national forest inventory. Pines inside housing estates are mapped as residential land, not forest, so the coastal towns built under the pines are undercounted.`;
+    $('mHazard').textContent = `The yearly chance that a hectare burns is the area burned in a zone, divided by the years and by the zone's forest area. Fires come from BDIFF, located by the commune where they started and split between zones as on the fire map. The 2026 fires are not in BDIFF yet, so the Saumos (42,000 ha) and Biscarrosse (3,600 ha) press figures are credited to those communes. The stress case therefore loads the whole Saumos fire on the ${Z.find(z => z.id === 'medoc').name}, although it spread towards Le Porge, Lacanau and Lège-Cap-Ferret.`;
+    $('sources').innerHTML = D.sources.map(u => `<li><a href="${u}" target="_blank" rel="noopener">${decodeURI(u).replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '').slice(0, 70)}</a></li>`).join('');
+  })();
+
+  // ---------- Controls
+  const setBand = b => { band = b; $('m200').setAttribute('aria-pressed', String(b === 200)); $('m50').setAttribute('aria-pressed', String(b === 50)); renderMap(); };
+  $('m200').onclick = () => setBand(200);
+  $('m50').onclick = () => setBand(50);
+  $('fireBtn').onclick = () => { fires = !fires; $('fireBtn').setAttribute('aria-pressed', String(fires)); renderMap(); };
+
+  renderMap();
+})();
+</script>

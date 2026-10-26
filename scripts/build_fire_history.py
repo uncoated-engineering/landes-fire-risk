@@ -58,21 +58,8 @@ def load_bdiff() -> pd.DataFrame:
     return df
 
 
-def main():
-    m = fh.build_massif()
-    bm = fh.base_map(m)
-    sx, sy = bm.sx, bm.sy
-    df = load_bdiff()
-
-    known = set(m.communes.code)
-    massif_codes = list(m.massif_c.code)
-    unmatched = df[~df["Code INSEE"].isin(known)]
-    outside = df[df["Code INSEE"].isin(known) & ~df["Code INSEE"].isin(massif_codes)]
-    fires = df[df["Code INSEE"].isin(massif_codes)].copy()
-    print(f"fires: {len(df)} in export, {len(fires)} in massif ({fires.ha.sum():,.0f} ha), "
-          f"{len(outside)} outside ({outside.ha.sum():,.0f} ha), {len(unmatched)} unmatched ({unmatched.ha.sum():,.1f} ha)")
-
-    # communes of the massif and the hexagons inside each
+def commune_hexes(m, df: pd.DataFrame):
+    """Communes of the massif (BDIFF names), the commune of each hexagon and the hexagons of each commune."""
     mc = m.massif_c.reset_index(drop=True)
     hexes = m.hexes
     j = gpd.sjoin(hexes[["geometry"]], mc[["code", "geometry"]], how="left", predicate="within")
@@ -88,6 +75,26 @@ def main():
     # BDIFF names keep the article ("La Teste-de-Buch"); the boundary file drops it ("Teste-de-Buch")
     bdiff_name = df.drop_duplicates("Code INSEE").set_index("Code INSEE")["Nom de la commune"].to_dict()
     mc["nom"] = [bdiff_name.get(c, n) for c, n in zip(mc.code, mc.nom)]
+    return mc, hex_code, comm_hexes
+
+
+def main():
+    m = fh.build_massif()
+    bm = fh.base_map(m)
+    sx, sy = bm.sx, bm.sy
+    df = load_bdiff()
+
+    known = set(m.communes.code)
+    massif_codes = list(m.massif_c.code)
+    unmatched = df[~df["Code INSEE"].isin(known)]
+    outside = df[df["Code INSEE"].isin(known) & ~df["Code INSEE"].isin(massif_codes)]
+    fires = df[df["Code INSEE"].isin(massif_codes)].copy()
+    print(f"fires: {len(df)} in export, {len(fires)} in massif ({fires.ha.sum():,.0f} ha), "
+          f"{len(outside)} outside ({outside.ha.sum():,.0f} ha), {len(unmatched)} unmatched ({unmatched.ha.sum():,.1f} ha)")
+
+    # communes of the massif and the hexagons inside each
+    mc, hex_code, comm_hexes = commune_hexes(m, df)
+    hexes = m.hexes
     centre = mc.representative_point()
     code_idx = {c: k for k, c in enumerate(mc.code)}
     communes = [[r.nom, sx(centre[k].x), sy(centre[k].y), comm_hexes[r.code]] for k, r in mc.iterrows()]

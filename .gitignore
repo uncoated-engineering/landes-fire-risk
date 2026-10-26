@@ -28,3 +28,4 @@ output/
 .env
 docs/forest-history/atlas.artifact.html
 docs/fire-history/fires.artifact.html
+docs/exposure/exposure.artifact.html
