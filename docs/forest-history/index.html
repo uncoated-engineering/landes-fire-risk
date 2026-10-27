@@ -86,7 +86,10 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
 .map-card { padding: 8px; }
-.map-frame { background: var(--sea); border-radius: 10px; overflow: hidden; }
+.map-frame { position: relative; background: var(--sea); border-radius: 10px; overflow: hidden; }
+.reset { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: 600 .85rem/1 var(--f-label); cursor: pointer; box-shadow: 0 2px 10px -4px rgba(0,0,0,.35); }
+.reset:hover { border-color: var(--forest); }
+.reset svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 #map { display: block; width: 100%; height: auto; max-height: 72vh; touch-action: manipulation; }
 .legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; padding: 8px 6px 4px; }
 @media (min-width: 520px) { .legend { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
@@ -186,7 +189,7 @@ details.method a { color: var(--forest); }
   <div class="grid">
     <div class="map-col">
       <div class="card map-card">
-        <div class="map-frame"><svg id="map" role="img" aria-label="Hexagon map of the Landes de Gascogne showing forest, moor, farmland and burned land for the selected year"></svg></div>
+        <div class="map-frame"><svg id="map" role="img" aria-label="Hexagon map of the Landes de Gascogne showing forest, moor, farmland and burned land for the selected year"></svg><button type="button" class="reset" id="resetSel" hidden title="Show the whole massif again (Esc)"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5"/></svg>Show whole massif</button></div>
         <div class="legend" id="legend"></div>
         <p class="map-note">Each hexagon is 1,500 ha. Tap a zone for its figures.</p>
       </div>
@@ -431,19 +434,24 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
     if (sel !== null) zoneG.appendChild(zoneEls[sel]);
     document.querySelectorAll('.zone-row').forEach((r, k) => r.classList.toggle('on', k === sel));
     $('zoneDetail').hidden = sel === null;
+    $('resetSel').hidden = sel === null;
     if (sel !== null) zoneDetail();
   }
+  // back to the whole massif: the map button, a second tap on the zone, a tap on empty map, or Esc
+  const clearSelection = () => { if (sel !== null) selectZone(sel); };
 
   function zoneDetail() {
     const z = D.zones[sel], year = SNAP[idx];
     const now = D.zoneStats[year][sel], first = D.zoneStats[1780][sel];
     const forest = (now[0] + now[1]) * HA, share = Math.round(forest / z.ha * 100);
-    $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span>${z.blurb}</span><span>${fmt(z.ha)} ha in all · in ${year}: <b>${fmt(forest)} ha of forest</b> (${share}%)${year > 1780 ? ', up from ' + fmt((first[0] + first[1]) * HA) + ' ha in 1780' : ''}${now[1] ? ' · ' + fmt(now[1] * HA) + ' ha burned or storm-hit' : ''}.</span><button type="button" id="clearZone">Show all zones</button>`;
-    $('clearZone').onclick = () => selectZone(sel);
+    $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span>${z.blurb}</span><span>${fmt(z.ha)} ha in all · in ${year}: <b>${fmt(forest)} ha of forest</b> (${share}%)${year > 1780 ? ', up from ' + fmt((first[0] + first[1]) * HA) + ' ha in 1780' : ''}${now[1] ? ' · ' + fmt(now[1] * HA) + ' ha burned or storm-hit' : ''}.</span><button type="button" id="clearZone">Show whole massif</button>`;
+    $('clearZone').onclick = clearSelection;
   }
 
   document.querySelectorAll('.zone-row').forEach(r => r.addEventListener('click', () => selectZone(+r.dataset.i)));
   hexG.addEventListener('click', e => { const z = e.target.getAttribute && e.target.getAttribute('data-z'); if (z !== null) selectZone(+z); });
+  map.addEventListener('click', e => { if (!(e.target.getAttribute && e.target.getAttribute('data-z') !== null)) clearSelection(); });
+  $('resetSel').onclick = clearSelection;
   slider.addEventListener('input', () => { stop(); go(+slider.value); });
   $('prev').onclick = () => { stop(); go(idx - 1); };
   $('next').onclick = () => { stop(); go(idx + 1); };
@@ -454,7 +462,7 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
     $('playIcon').innerHTML = '<path d="M2 1h2.2v8H2zM5.8 1H8v8H5.8z"/>'; $('play').setAttribute('aria-label', 'Pause');
   }
   function stop() { if (!timer) return; clearInterval(timer); timer = null; $('playIcon').innerHTML = '<path d="M2.5 1 8.5 5 2.5 9z"/>'; $('play').setAttribute('aria-label', 'Play'); }
-  document.addEventListener('keydown', e => { if (e.target === slider) return; if (e.key === 'ArrowRight') { stop(); go(idx + 1); } if (e.key === 'ArrowLeft') { stop(); go(idx - 1); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') return clearSelection(); if (e.target === slider) return; if (e.key === 'ArrowRight') { stop(); go(idx + 1); } if (e.key === 'ArrowLeft') { stop(); go(idx - 1); } });
 
   go(0);
 })();

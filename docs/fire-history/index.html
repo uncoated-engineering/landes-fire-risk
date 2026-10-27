@@ -94,7 +94,10 @@ h3 { font: 600 .78rem/1.2 var(--f-label); letter-spacing: .12em; text-transform:
 .seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 
 /* Map */
-.map-frame { background: var(--sea); border-radius: 10px; overflow: hidden; }
+.map-frame { position: relative; background: var(--sea); border-radius: 10px; overflow: hidden; }
+.reset { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: 600 .85rem/1 var(--f-label); cursor: pointer; box-shadow: 0 2px 10px -4px rgba(0,0,0,.35); }
+.reset:hover { border-color: var(--ember); }
+.reset svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 #map { display: block; width: 100%; height: auto; max-height: 72vh; }
 .sea { fill: var(--sea); }
 .ctx { fill: var(--land); }
@@ -221,7 +224,7 @@ details.method a { color: var(--ember); }
           <button type="button" id="mStarts" aria-pressed="true">Where fires start</button>
           <button type="button" id="mBurn" aria-pressed="false">Where land burned</button>
         </div>
-        <div class="map-frame"><svg id="map" role="img" aria-label="Map of the Landes de Gascogne massif showing forest fires for the selected years"></svg></div>
+        <div class="map-frame"><svg id="map" role="img" aria-label="Map of the Landes de Gascogne massif showing forest fires for the selected years"></svg><button type="button" class="reset" id="resetSel" hidden title="Show the whole massif again (Esc)"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5"/></svg>Show whole massif</button></div>
         <div class="legend" id="legend"></div>
         <div class="info" id="info" aria-live="polite">Tap the map to see a commune's fires.</div>
       </div>
@@ -353,6 +356,7 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
       : fmt(S.list.length) + ' fires · ' + fmt(tot) + ' ha';
     renderMap(S); renderYearChart(); renderZones(S); renderBig(S); renderMonths(S); renderCauses(S);
     if (selComm !== null) showCommune(selComm, S);
+    $('resetSel').hidden = selZone === null && selComm === null;
   }
 
   function renderMap(S) {
@@ -497,8 +501,8 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
     $('zoneDetail').hidden = false;
     $('zoneDetail').innerHTML = `<strong>${z.name}</strong><span>${Math.round(zoneLand[selZone] * 100)}% of the massif · ${S.label === 'All years' ? Y0 + '–' + Y1 : S.label}: about ${fmt(n[selZone])} fires and ${fmt(ha[selZone])} ha burned (${pct(ha[selZone], tot)}% of the total).</span>` +
       (S.list.length ? `<span>${rate.toFixed(1)} fire starts per 10,000 ha per year${top && top.ha >= 50 ? ' · largest: ' + D.communes[top.c][0] + ', ' + top.y + ', ' + fmt(top.ha) + ' ha' : ''}.</span>` : '') +
-      `<button type="button" id="clearZone">Show all zones</button>`;
-    $('clearZone').onclick = () => selectZone(selZone);
+      `<button type="button" id="clearZone">Show whole massif</button>`;
+    $('clearZone').onclick = clearSelection;
   }
   function selectZone(i) {
     selZone = selZone === i ? null : i;
@@ -509,7 +513,8 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
     $('zoneDetail').hidden = selZone === null;
     render();
   }
-  document.querySelectorAll('.zone-row').forEach(r => r.addEventListener('click', () => selectZone(+r.dataset.i)));
+  // a zone picked from the list drops the commune picked on the map
+  document.querySelectorAll('.zone-row').forEach(r => r.addEventListener('click', () => { selComm = null; $('info').textContent = INFO0; selectZone(+r.dataset.i); }));
 
   // ---------- Commune info from map taps
   function showCommune(c, S) {
@@ -528,10 +533,21 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
   }
   hexG.addEventListener('click', e => {
     const i = e.target.dataset && e.target.dataset.i; if (i === undefined) return;
+    if (D.hexComm[+i] === selComm) return clearSelection();  // a second tap on the same commune clears it
     selComm = D.hexComm[+i];
     const z = hexZone[+i];
     if (selZone !== z) selectZone(z); else render();
   });
+
+  // back to the whole massif: the map button, a tap on empty map, or Esc
+  const INFO0 = "Tap the map to see a commune's fires.";
+  function clearSelection() {
+    selComm = null;
+    $('info').textContent = INFO0;
+    if (selZone !== null) selectZone(selZone); else render();
+  }
+  map.addEventListener('click', e => { if (!e.target.classList.contains('hx')) clearSelection(); });
+  $('resetSel').onclick = clearSelection;
 
   // ---------- Largest fires
   function renderBig(S) {
@@ -608,7 +624,7 @@ const DATA = {"meta":{"hexHa":1500,"hexR":2.403,"width":178.54,"height":257.27,"
   const setMode = md => { mode = md; $('mStarts').setAttribute('aria-pressed', String(md === 'starts')); $('mBurn').setAttribute('aria-pressed', String(md === 'burn')); render(); };
   $('mStarts').onclick = () => setMode('starts');
   $('mBurn').onclick = () => setMode('burn');
-  document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') $('next').click(); if (e.key === 'ArrowLeft') $('prev').click(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') return clearSelection(); if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') $('next').click(); if (e.key === 'ArrowLeft') $('prev').click(); });
 
   render();
 })();
